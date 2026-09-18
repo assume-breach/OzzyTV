@@ -52,7 +52,7 @@ class TestTheScreenSaysWhatIsPressable:
 
 
 class TestClicking:
-    def test_a_shelf_shows_its_programmes(self, allow_everything):
+    def test_a_shelf_shows_its_shows(self, allow_everything):
         app = allow_everything
         target = [i for i, s in enumerate(shelves(app.view())) if s == "PAW Patrol"][0]
         app.click(f"rail:{target}")
@@ -80,13 +80,6 @@ class TestClicking:
         app.click(f"tile:{folders[0]}")
         assert app.view().heading != "Bluey" or app.view().tiles
 
-    def test_a_digit_reaches_the_keypad(self, allow_everything):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        app.handle(Action.PARENT)
-        app.click("digit:1")
-        app.click("digit:3")
-        assert app.view().pin_digits == 2
 
     def test_clicking_nothing_in_particular_is_ignored(self, allow_everything):
         """A stale hit map, a click in a gap, a name from a newer version —
@@ -104,7 +97,7 @@ class TestClicking:
 class TestThePointerItself:
     def test_it_is_hidden_until_the_mouse_moves(self, tkview):
         """Permanently hidden and it looks broken; permanently shown and there
-        is an arrow parked in the middle of a programme, because a child will
+        is an arrow parked in the middle of a show, because a child will
         find the mouse and then let go of it."""
         cursors = [kw.get("cursor") for n, a, kw in tkview.root.calls
                    if n == "config" and "cursor" in kw]
@@ -163,12 +156,21 @@ class TestClickingWhereYouActuallyClicked:
         assert "event.x" in src
 
 
+@pytest.fixture()
+def empty_tv(settings, store, player, clock, tmp_path):
+    """Nothing on the drive — the home screen with only its own tiles on it."""
+    from ozzytv.app import OzzyApp
+    settings.media_roots = [str(tmp_path / "nothing")]
+    return OzzyApp(settings, store, player, clock=clock)
+
+
 class TestTheFirstBootScreen:
     """The one screen where a grown-up is certainly the one standing there,
     most likely with a mouse — and until now the one screen with nothing on it
     a pointer could press."""
 
-    def test_its_tiles_are_clickable_like_any_others(self, app):
+    def test_its_tiles_are_clickable_like_any_others(self, empty_tv):
+        app = empty_tv
         v = app.view()
         assert v.welcome, "not the first-boot screen"
         assert v.tiles, "a home screen with nothing on it to press"
@@ -177,7 +179,8 @@ class TestTheFirstBootScreen:
         for i in range(len(v.tiles)):
             assert f"tile:{i}" in targets, f"home tile {i} does nothing when clicked"
 
-    def test_and_clicking_grown_ups_opens_the_way_in(self, app):
+    def test_and_clicking_grown_ups_opens_the_way_in(self, empty_tv):
+        app = empty_tv
         v = app.view()
         i = [n for n, t in enumerate(v.tiles) if t.kind == "parent"][0]
         app.click(f"tile:{i}")

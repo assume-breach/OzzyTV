@@ -53,7 +53,7 @@ class Decision:
     # allowed yet" reads very differently from "hidden — you blocked Scary Films".
     by: str | None
     # True when the deciding rule was on an ANCESTOR rather than this item, i.e.
-    # the item inherits. The parent screen greys inherited rows so it is obvious
+    # the item inherits. The parent screen grays inherited rows so it is obvious
     # which one to change.
     inherited: bool = False
     # Set when the path could not be placed inside its root at all.
@@ -128,7 +128,13 @@ def decide_rel(rules: Rules, rel: str) -> Decision:
             return Decision(visible=False, by=key, inherited=i > 0)
         if mark is Mark.ALLOW:
             return Decision(visible=True, by=key, inherited=i > 0)
-    return Decision(visible=False, by=None)
+    # Nothing said otherwise, so it shows. This used to fail CLOSED — nothing
+    # was visible until a grown-up allowed it, one thing at a time. That is the
+    # right default for a machine somebody else fills up, and the wrong one for
+    # a machine you fill up yourself: you already decided when you copied the
+    # file on. Blocking still works and is still inherited; it is just no longer
+    # something you have to do before anything appears.
+    return Decision(visible=True, by=None)
 
 
 def is_visible(rules: Rules, root: Path, path: Path) -> bool:

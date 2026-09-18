@@ -89,7 +89,7 @@ class TkView:
         self.canvas.place(x=0, y=0, relwidth=1, relheight=1)
         # The paused strip is its OWN canvas across the bottom. Tk widgets are
         # opaque, so a full-screen canvas raised over the video does not overlay
-        # the picture — it replaces it with a rectangle of background colour.
+        # the picture — it replaces it with a rectangle of background color.
         self.overlay = tk.Canvas(self.root, bg=skin.PANEL, highlightthickness=0, bd=0)
         self.overlay.place_forget()
         _raise(self.canvas)
@@ -117,7 +117,7 @@ class TkView:
         """Show the pointer while it is moving, and take it away again.
 
         Permanently hidden and it looks broken; permanently shown and there is
-        an arrow parked in the middle of a programme, because a child will find
+        an arrow parked in the middle of a show, because a child will find
         the mouse and let go of it.
         """
         try:

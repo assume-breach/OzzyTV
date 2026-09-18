@@ -435,7 +435,7 @@ class TestTheSessionScript:
         assert "journalctl" in (REPO / "install" / "ozzytv-session").read_text()
 
     def test_screen_blanking_is_turned_off(self):
-        """A programme is not idle because nobody has pressed a key for ten
+        """A show is not idle because nobody has pressed a key for ten
         minutes."""
         body = (REPO / "install" / "ozzytv-session").read_text()
         assert "xset s off" in body and "-dpms" in body
@@ -536,7 +536,7 @@ class TestTheNetworkShare:
         assert p.returncode == 0, p.stderr
 
     def test_it_is_set_up_by_the_ordinary_install(self, install):
-        """Getting programmes onto the machine is not an optional extra. It is
+        """Getting shows onto the machine is not an optional extra. It is
         the second thing anybody needs after the menu appears, and "now copy
         them onto a memory stick and walk them over" is not an answer."""
         install()

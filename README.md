@@ -7,17 +7,18 @@ and a grown-up holding the keys.
 
 Roku-shaped menus — a list of shelves down the left, big tiles across the right,
 one unmistakable selection — painted for a two-year-old: a sky with clouds and
-hills, sweet colours, and an animal on everything.
+hills, sweet colors, and an animal on everything.
 
 ![The home screen](docs/mockups/01-home.png)
 
-Point it at a folder of films and programmes. Your child sees big tiles and
+Point it at a folder of films and shows. Your child sees big tiles and
 nothing else — no settings, no way out to a desktop. You decide, per file or per
 folder, what is on those tiles.
 
-**Nothing is visible until you allow it.** A fresh install shows "Ask a grown-up",
-not the whole drive. A USB stick someone plugs in later appears to you and not to
-your child.
+**What you put on the drive is what shows up.** You already decided when you
+copied the file on. If there is something you would rather your child did not
+find, block it from the grown-ups screen — per file or per folder — and it stays
+blocked, including anything added to that folder later.
 
 ---
 
@@ -57,14 +58,14 @@ media and your choices alone.
 
 ## The animals
 
-Every shelf and every programme gets a creature and a colour, chosen by hashing
+Every shelf and every show gets a creature and a color, chosen by hashing
 its name. A child who cannot read "Bluey" or "Series 1" can absolutely remember
 that theirs is the green frog, and it stays the green frog across a rescan, a
 reboot and a new SD card.
 
 ![The animals](docs/mockups/00-animals.png)
 
-Nothing on one screen ever wears the same animal as its neighbour. A hash on its
+Nothing on one screen ever wears the same animal as its neighbor. A hash on its
 own cannot promise that — twelve creatures and six tiles collide about three
 times in four, and the first render of the home screen put four pandas on it — so
 each name asks for its animal and takes the next one along if it is already
@@ -80,7 +81,7 @@ keyboards — and so does a plain keyboard.
 | Up / Down | move down the shelves, or the tiles |
 | Right / OK | cross from the shelves to the tiles |
 | Left / Back | back to the shelves |
-| OK on a tile | open a folder, play a programme, pause |
+| OK on a tile | open a folder, play a show, pause |
 | + / − | volume (bounded, so the telly never ends up silent) |
 
 Back at the top level does nothing. That is the point: holding Back is how a
@@ -103,7 +104,7 @@ ozzytv --block "/media/ozzy/PAW Patrol/S03E12.mp4"   # except this one
 ozzytv --forget "/media/ozzy/Films"              # back to inheriting
 ```
 
-### How the rules work
+### Hiding something
 
 Mark a file or a folder. A folder's mark covers everything inside it, and the
 **nearest** mark wins — so "allow Bluey, block Bluey/S02E14" reads the way it
@@ -116,7 +117,7 @@ too. That is normally what you mean, and the parent screen says so on the row.
 
 ```
 ozzytv/picks.py      what your child may see           ← the safety boundary
-ozzytv/app.py        every screen and every keypress   ← all the behaviour, no drawing
+ozzytv/app.py        every screen and every keypress   ← all the behavior, no drawing
 ozzytv/skin.py       the look: layout, palette, animals, logo  ← a View becomes a Scene
 ozzytv/scene.py      shapes and words with coordinates, and nothing else
 ozzytv/tkview.py     the only file that touches a screen        ← a Scene becomes Tk
@@ -133,13 +134,13 @@ The layout is data. `skin.py` turns a screen into a list of shapes with
 coordinates and touches nothing; two things draw that list — Tk on the
 television, and `tools/mockup.py` into a PNG. So the pictures in this README are
 not impressions of the design, they are the screen, and "the focused tile is
-bigger than its neighbours" is a test rather than an opinion about a screenshot.
+bigger than its neighbors" is a test rather than an opinion about a screenshot.
 
 ```sh
 python3 tools/mockup.py          # re-render docs/mockups/ after a change
 ```
 
-`app.py` holds the behaviour and draws nothing, so the whole of what a remote
+`app.py` holds the behavior and draws nothing, so the whole of what a remote
 can do is driven by the tests without a screen. Software for a four-year-old is
 exactly the kind nobody tests, because testing it looks like it needs a
 television — and the user cannot report a bug.
@@ -251,11 +252,11 @@ startx /usr/local/bin/ozzytv-session -- :0 vt1 -keeptty
 **Re-running `sudo ./install/install.sh` repairs all of this** and keeps your
 settings, your PIN and your allow/block choices. It is the upgrade path as well.
 
-## Getting programmes onto it
+## Getting shows onto it
 
 **The installer sets up a network share by default** — copying films onto a
 memory stick and walking them over is not an answer to "how do I add a
-programme". It asks for a password as it goes.
+show". It asks for a password as it goes.
 
 ```sh
 sudo ./install/install.sh --no-share   # skip it
@@ -292,7 +293,7 @@ Files land owned by the television's user whatever a laptop calls itself, so
 they are readable rather than arriving as somebody else's and leaving the menu
 empty.
 
-**New programmes appear on their own, within a few seconds** — there is nothing
+**New shows appear on their own, within a few seconds** — there is nothing
 to restart. Ozzy TV watches folder modification times, one stat per folder
 rather than a walk of the drive, and only while nothing is playing. You still
 have to allow them for your child; that part is deliberate and stays manual.
@@ -319,7 +320,7 @@ is itself the grown-up act.
 ## Driving it with a mouse
 
 Made for a remote, and it stays that way — but a mouse works. Click a shelf to
-open it, click a programme to play it. On the parent screen a click moves to a
+open it, click a show to play it. On the parent screen a click moves to a
 row; allowing or blocking still takes OK, because that is a decision and a stray
 click is not one.
 
@@ -355,4 +356,4 @@ There is no watch-timer or bedtime lock. Say the word and I will add one.
 MIT — see [LICENSE](LICENSE). Do what you like with it.
 
 VLC does the playing and is not bundled; it comes from the Raspberry Pi OS
-packages and stays under its own licence.
+packages and stays under its own license.

@@ -102,16 +102,13 @@ class TestWhatIsOnTheDrive:
 
 
 class TestWhatTheChildCanSee:
-    def test_nothing_allowed_yet_is_explained_as_deliberate(self, settings, store):
+    def test_an_empty_drive_is_reported(self, settings, store, tmp_path):
+        settings.media_roots = [str(tmp_path / "nothing")]
         c = doctor.check_allowed(settings, store)
         assert c.state == WARN
-        assert "--allow" in c.fix
+        assert "--scan" in c.fix
 
-    def test_once_something_is_allowed_it_is_counted(self, settings, store):
-        from ozzytv import library
-        from ozzytv.picks import ROOT_KEY, Mark
-        root = library.scan(settings.roots)[0].root
-        store.set_mark(root, ROOT_KEY, Mark.ALLOW)
+    def test_what_is_on_the_drive_is_counted(self, settings, store):
         c = doctor.check_allowed(settings, store)
         assert c.state == OK
         assert c.detail.split()[0].isdigit()

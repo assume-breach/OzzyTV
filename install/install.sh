@@ -28,7 +28,7 @@ die()  { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 [ "$(id -u)" -eq 0 ] || die "run this with sudo."
 
 KIOSK=1
-# On by default. Getting programmes onto the machine is not an optional extra —
+# On by default. Getting shows onto the machine is not an optional extra —
 # it is the second thing anybody needs after the menu appears, and the answer
 # "now copy them onto a memory stick and walk them over" is not one.
 SHARE=1
@@ -196,7 +196,7 @@ JSON
   chown "$OWNER":"$OWNER" "$CONF_DIR/settings.json"
 fi
 
-# ---- and a way to get programmes onto it ----------------------------------
+# ---- and a way to get shows onto it ----------------------------------
 if [ "$SHARE" -eq 1 ]; then
   # Every destination share.sh writes to is forwarded, not just the media
   # folder. Without this the test harness — which overrides everything else —
@@ -221,7 +221,7 @@ if [ "$KIOSK" -eq 1 ]; then
   # the Pi comes up to a desktop, a black screen, or a flickering alternation of
   # the two. Switch it off — and write down what was switched off, so
   # --uninstall gives the desktop back rather than leaving someone with a Pi
-  # that will not boot to anything they recognise.
+  # that will not boot to anything they recognize.
   : > "$STATE"
   DM=""
   if [ -L /etc/systemd/system/display-manager.service ]; then
@@ -291,7 +291,7 @@ cat <<TXT
 
 Ozzy TV is installed.   [$(cat "$APP_DIR/BUILD")]
 
-  1. Put films and programmes in $MEDIA_DEFAULT
+  1. Put films and shows in $MEDIA_DEFAULT
         (or edit media_roots in $CONF_DIR/settings.json)
 
   2. Set the parent PIN — do this before anyone else does:

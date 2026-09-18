@@ -19,24 +19,35 @@ def R(**marks) -> Rules:
     return Rules(marks={k.replace("__", "/"): v for k, v in marks.items()})
 
 
-class TestNothingIsVisibleUntilSomeoneSaysSo:
-    def test_an_empty_library_shows_nothing(self):
-        assert decide_rel(Rules.empty(), "Bluey/S01E01.mp4").visible is False
+class TestEverythingShowsUnlessSomebodyHidesIt:
+    """This used to fail CLOSED: nothing was visible until a grown-up allowed it,
+    one thing at a time. That is the right default for a machine somebody else
+    fills up, and the wrong one for a machine you fill up yourself — you already
+    decided when you copied the file on."""
 
-    def test_and_says_that_nobody_has_decided_yet(self):
-        """'Nothing is allowed yet' and 'you blocked this' are different problems
-        and the parent screen has to tell them apart."""
+    def test_an_untouched_library_is_all_visible(self):
+        assert decide_rel(Rules.empty(), "Bluey/S01E01.mp4").visible is True
+
+    def test_and_says_nobody_has_decided_anything_about_it(self):
+        """'Nobody has touched this' and 'you allowed this' are different, and
+        the grown-up screen has to tell them apart."""
         d = decide_rel(Rules.empty(), "Bluey/S01E01.mp4")
         assert d.by is None and d.escaped is False
 
-    def test_a_sibling_being_allowed_does_not_help(self):
-        rules = R(Bluey=Mark.ALLOW)
-        assert decide_rel(rules, "Horror/It.mp4").visible is False
+    def test_blocking_still_works(self):
+        assert decide_rel(R(Horror=Mark.BLOCK), "Horror/It.mp4").visible is False
 
-    def test_deleting_a_rule_hides_everything_under_it_again(self):
-        rules = R(Bluey=Mark.ALLOW)
-        assert decide_rel(rules, "Bluey/S01E01.mp4").visible is True
-        assert decide_rel(rules.with_mark("Bluey", None), "Bluey/S01E01.mp4").visible is False
+    def test_and_is_still_inherited_by_everything_under_it(self):
+        rules = R(Horror=Mark.BLOCK)
+        assert decide_rel(rules, "Horror/Sequels/It2.mp4").visible is False
+
+    def test_a_sibling_being_blocked_does_not_hide_anything_else(self):
+        assert decide_rel(R(Horror=Mark.BLOCK), "Bluey/S01E01.mp4").visible is True
+
+    def test_deleting_a_block_shows_everything_under_it_again(self):
+        rules = R(Horror=Mark.BLOCK)
+        assert decide_rel(rules, "Horror/It.mp4").visible is False
+        assert decide_rel(rules.with_mark("Horror", None), "Horror/It.mp4").visible is True
 
 
 class TestNearestRuleWins:
@@ -82,12 +93,12 @@ class TestNearestRuleWins:
         assert decide_rel(rules, ROOT_KEY).visible is True
 
     def test_a_name_that_merely_starts_the_same_is_a_different_folder(self):
-        """'Bluey Bloopers' must not inherit from 'Bluey' — a prefix match here
-        would quietly widen every rule a parent sets."""
-        rules = R(Bluey=Mark.ALLOW)
-        assert decide_rel(rules, "Bluey Bloopers/outtake.mp4").visible is False
-        assert decide_rel(rules, "Blueyish/x.mp4").visible is False
-
+        """"Bluey" must not be the rule for "Bluey Extras". Matching on a string
+        prefix rather than on path segments is how a block on one folder silently
+        covers its neighbor."""
+        rules = R(**{"Bluey": Mark.BLOCK})
+        assert decide_rel(rules, "Bluey/ep.mp4").visible is False
+        assert decide_rel(rules, "Bluey Extras/ep.mp4").visible is True
 
 class TestConfinement:
     """Being REACHABLE through an allowed folder is not the same as being in it."""
@@ -177,8 +188,16 @@ class TestEmptyShelves:
         assert folder_has_anything_visible(
             rules, "Bluey/S01", ["Bluey/S01/E01.mp4", "Bluey/S01/E02.mp4"]) is False
 
-    def test_an_unmarked_folder_is_not(self):
-        assert folder_has_anything_visible(Rules.empty(), "New", ["New/x.mp4"]) is False
+    def test_an_unmarked_folder_is_shown(self):
+        """Nothing has been said about it, so it shows — the whole point of the
+        default now being open."""
+        assert folder_has_anything_visible(Rules.empty(), "New", ["New/x.mp4"]) is True
+
+    def test_a_blocked_folder_is_empty_and_therefore_hidden(self):
+        """A shelf you can open to find nothing is worse than no shelf: the
+        child cannot tell it from having done something wrong."""
+        rules = R(New=Mark.BLOCK)
+        assert folder_has_anything_visible(rules, "New", ["New/x.mp4"]) is False
 
     def test_one_survivor_is_enough(self):
         rules = Rules(marks={"F": Mark.ALLOW, "F/a.mp4": Mark.BLOCK})

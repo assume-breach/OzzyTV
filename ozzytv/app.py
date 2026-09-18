@@ -1,4 +1,4 @@
-"""The whole of Ozzy TV's behaviour, with nothing drawn.
+"""The whole of Ozzy TV's behavior, with nothing drawn.
 
 Every screen, every keypress and every rule about what happens next lives here,
 as a state machine over plain data. The drawing layer (tkview.py) does two
@@ -7,7 +7,7 @@ things: hand keypresses in as Actions, and render `view()`. Nothing else.
 That split is not tidiness. A television for a child is exactly the kind of
 software nobody tests, because testing it appears to need a television — and the
 consequences of not testing it land on someone who cannot report a bug. With the
-behaviour separated out, the navigation, the PIN gate and the parent screen are
+behavior separated out, the navigation, the PIN gate and the parent screen are
 all driven headlessly, and what is left unverified is confined to widget
 plumbing.
 """
@@ -25,7 +25,7 @@ from .picks import Mark, Rules
 from .playback import PlaybackSession, PlayState, SEEK_BIG_MS, SEEK_SMALL_MS
 from .security import PinGate, WeakPin, check_pin_strength
 
-# How often to look for programmes that arrived over the network. Long enough
+# How often to look for shows that arrived over the network. Long enough
 # that it is not a drip of I/O, short enough that somebody who has just copied a
 # film over does not conclude it did not work.
 LOOK_FOR_NEW_EVERY = 5.0
@@ -144,8 +144,8 @@ HOME_KEY = "\x00home"
 PARENT_REL = "\x00parent"
 
 NOTHING_ALLOWED = ("Nothing to watch yet.\n\n"
-                   "Ask a grown-up to choose some programmes for you.")
-NO_MEDIA = ("No films or programmes found.\n\n"
+                   "Ask a grown-up to choose some shows for you.")
+NO_MEDIA = ("No films or shows found.\n\n"
             "Ask a grown-up to plug in the drive with the videos on it.")
 
 
@@ -157,7 +157,7 @@ def welcome_steps(settings, allowed: bool) -> list[tuple[str, str]]:
     it rather than reading a README.
     """
     where = str(settings.roots[0]) if settings.roots else "/media/ozzy"
-    steps = [("Copy programmes in",
+    steps = [("Copy shows in",
               f"Put films and episodes in {where} — over the network, or on a "
               f"memory stick."),
              ("Choose what Ozzy can watch",
@@ -231,7 +231,7 @@ class OzzyApp:
                 out.append((str(d), -1))       # gone counts as a change
         return tuple(sorted(out))
 
-    def look_for_new_programmes(self) -> bool:
+    def look_for_new_shows(self) -> bool:
         """Rescan if the drive changed, WITHOUT losing where somebody is.
 
         Films arrive over the network now, which means the library changes while
@@ -257,8 +257,13 @@ class OzzyApp:
         return True
 
     def rescan(self) -> None:
-        self.roots = [library.prune_empty_folders(n)
-                      for n in library.scan(self.settings.roots)]
+        # The WHOLE tree is kept as well as the pruned one. Pruning is what the
+        # child's side wants — a shelf you can open to find nothing is worse
+        # than no shelf — but the grown-up screen has to show the blocked
+        # things too. Built from the pruned tree, blocking a folder made it
+        # vanish from the screen you would have used to unblock it.
+        self.full_roots = library.scan(self.settings.roots)
+        self.roots = [library.prune_empty_folders(n) for n in self.full_roots]
         self.rules = [self.store.rules_for(n.root) for n in self.roots]
         self._stack = []
         self.focus = Pane.RAIL
@@ -426,7 +431,7 @@ class OzzyApp:
 
     def _handle(self, action: Action, value: str) -> None:
         if action is Action.PARENT and self.screen in (Screen.BROWSE, Screen.MESSAGE):
-            self._open_pin("parent")
+            self._open_parent()
             return
         handler = {
             Screen.BROWSE: self._browse_key,
@@ -444,7 +449,10 @@ class OzzyApp:
             self._home_key(action)
             return
         grid = self._grid()
-        cols = max(1, self.settings.columns)
+        # One column: the shows are a LIST now, so Up and Down walk it one
+        # at a time and Left is the way back to the shelves. The grid arithmetic
+        # below is unchanged — a grid one tile wide IS a list.
+        cols = 1
         if self.focus is Pane.RAIL:
             if action is Action.UP:
                 self.rail_cursor = max(0, self.rail_cursor - 1)
@@ -501,12 +509,10 @@ class OzzyApp:
             return
         self.focus = Pane.GRID
         self.cursor = min(self.cursor, len(tiles) - 1)
-        if action is Action.LEFT:
+        if action in (Action.UP, Action.LEFT):
             self.cursor = max(0, self.cursor - 1)
-        elif action is Action.RIGHT:
+        elif action in (Action.DOWN, Action.RIGHT):
             self.cursor = min(len(tiles) - 1, self.cursor + 1)
-        elif action is Action.UP:
-            self.cursor = 0
         elif action is Action.SELECT:
             self._open_home_tile(tiles[self.cursor])
         # Back does nothing on purpose. At the top there is nowhere to go, and
@@ -531,7 +537,7 @@ class OzzyApp:
 
     def _open_home_tile(self, tile: Tile) -> None:
         if tile.kind == "parent":
-            self._open_pin("parent")
+            self._open_parent()
         elif tile.kind == discs.DVD_KIND:
             self._play_disc(tile)
 
@@ -570,6 +576,12 @@ class OzzyApp:
         than as deliberate. The decision lives here, not in the drawing layer,
         for the same reason every other decision does: it can be tested.
         """
+        kind, rest = target.split(":", 1) if ":" in target else (target, "")
+        if kind == "key":
+            # The hint bar at the bottom is a row of buttons, not a legend.
+            self.handle({"select": Action.SELECT, "back": Action.BACK,
+                         "parent": Action.PARENT}.get(rest, Action.BACK))
+            return
         kind, _, n = target.partition(":")
         if kind == "grownups":
             # The first-boot cards. Every one of them ends at the same place.
@@ -681,7 +693,7 @@ class OzzyApp:
             now = self._clock()
             if now - self._looked_at >= LOOK_FOR_NEW_EVERY:
                 self._looked_at = now
-                self.look_for_new_programmes()
+                self.look_for_new_shows()
             return
         state = self.playback.tick()
         if state in (PlayState.ENDED, PlayState.ERROR):
@@ -694,6 +706,20 @@ class OzzyApp:
                                 "Ask a grown-up to check it.")
 
     # -- the keypad --
+    def _open_parent(self) -> None:
+        """Straight in. There is no PIN.
+
+        A lock on the settings screen is worth having when the person filling
+        the drive is not the person holding the remote. Here they are the same
+        person, and a PIN they set once and then have to remember is a tax on
+        the only user this machine has.
+        """
+        self._build_parent_rows()          # sets _parent_rows; returns nothing
+        self._parent_cursor = min(self._parent_cursor,
+                                  max(0, len(self._parent_rows) - 1))
+        self.message = ""
+        self.screen = Screen.PARENT
+
     def _open_pin(self, purpose: str) -> None:
         self._pin_buffer = ""
         self._pin_error = ""
@@ -762,20 +788,18 @@ class OzzyApp:
     # -- the parent screen --
     def _build_parent_rows(self) -> None:
         rows: list[ParentRow] = []
-        for ri, root in enumerate(self.roots):
+        for ri, root in enumerate(getattr(self, "full_roots", self.roots)):
             rules = self.rules[ri]
             def add(node: Node, depth: int):
                 d = picks.decide_rel(rules, node.rel)
                 own = rules.marks.get(node.rel)
                 note = ""
-                if own is Mark.ALLOW and node.kind is Kind.FOLDER:
-                    note = "whole folder — new files here show up too"
-                elif d.visible and d.inherited:
-                    note = f"from “{d.by}”"
-                elif not d.visible and d.by:
-                    note = f"blocked by “{d.by}”"
-                elif not d.visible:
-                    note = "not chosen yet"
+                if own is Mark.BLOCK and node.kind is Kind.FOLDER:
+                    note = "whole folder - anything added here stays hidden"
+                elif not d.visible and d.inherited:
+                    note = f'hidden by "{d.by}"'
+                elif own is Mark.ALLOW and d.inherited is False and d.by:
+                    note = "shown even though something above is hidden"
                 rows.append(ParentRow(
                     title=node.title, rel=node.rel, root_index=ri, depth=depth,
                     kind=node.kind.value, mark=own.value if own else "",
@@ -802,11 +826,6 @@ class OzzyApp:
             self.cursor = 0
             self._stack = []
             self.message = ""
-        elif action is Action.PARENT:
-            self._pin_purpose = "set"
-            self._pin_buffer = ""
-            self._pin_error = ""
-            self.screen = Screen.PIN
         elif action is Action.QUIT:
             self.should_quit = True
 
@@ -894,10 +913,11 @@ class OzzyApp:
             if n.is_playable:
                 if self.store.get_resume(n.path):
                     badge = "resume"
-                else:
-                    pl = self.store.get_playability(n.path)
-                    if pl and pl[0] == "no":
-                        badge = "may not play"
+                # No "may not play" badge. It was a guess about how fast this
+                # particular board decodes, printed next to the file as though
+                # it were a fact about the file — and VLC opens essentially
+                # anything, so the guess was wrong as often as it was right.
+                # A file that really will not play says so when it is pressed.
             tiles.append(Tile(title=n.title, kind=n.kind.value, rel=n.rel,
                               root_index=ri, badge=badge))
         # The breadcrumb is built from the PATH, not from the navigation stack.

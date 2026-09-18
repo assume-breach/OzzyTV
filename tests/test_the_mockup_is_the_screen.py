@@ -1,6 +1,6 @@
 """The mockups are not impressions of the design — they ARE the screen.
 
-skin.build() produces a Scene: pure data, coordinates and colours, no drawing.
+skin.build() produces a Scene: pure data, coordinates and colors, no drawing.
 tkview.py paints that Scene on the television and tools/mockup.py paints the
 same Scene to a PNG. So a mockup is a picture of the actual layout, and a tile
 in the wrong place in one is in the wrong place in the other.

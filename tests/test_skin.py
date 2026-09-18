@@ -2,7 +2,7 @@
 
 skin.build() turns a View into a Scene — shapes and words with coordinates — and
 nothing in it touches a screen. So "the focused tile is bigger than its
-neighbours" and "no two animals on this shelf are the same" are assertions, not
+neighbors" and "no two animals on this shelf are the same" are assertions, not
 opinions about a screenshot. tools/mockup.py renders the same Scene, so a mockup
 is a picture of the television rather than of the intention.
 """
@@ -32,7 +32,7 @@ def build(view, w=W, h=H):
 
 class TestTheAnimals:
     def test_a_name_always_gets_the_same_one(self):
-        """A child who cannot read learns that the green frog is their programme.
+        """A child who cannot read learns that the green frog is their show.
         That has to survive a rescan, a reboot and a new SD card — which rules
         out hash(), whose seed is randomised per process."""
         assert skin.badge_for("Bluey") == skin.badge_for("Bluey")
@@ -45,7 +45,7 @@ class TestTheAnimals:
                  "Series 3", "Bin Night · S3 E1", "The Magic Xylophone · S1 E1"]
         got = skin.assign_badges(names)
         assert len({b.creature for b in got.values()}) == len(names)
-        assert len({b.colour for b in got.values()}) == len(names)
+        assert len({b.color for b in got.values()}) == len(names)
 
     def test_the_same_shelf_looks_the_same_every_time(self):
         names = ["a", "b", "c", "d"]
@@ -68,7 +68,7 @@ class TestTheAnimals:
 class TestTheShelfList:
     def test_the_highlighted_shelf_is_marked(self):
         sc = build(rail_view())
-        # The selected pill is the one filled with the highlight colour.
+        # The selected pill is the one filled with the highlight color.
         assert any(r.fill == skin.PILL_ON for r in sc.rects())
 
     def test_focus_shows_which_pane_the_remote_is_driving(self):
@@ -97,11 +97,16 @@ class TestTheTiles:
         """The tile bodies: the big rounded boxes in the right-hand half."""
         return [r for r in sc.rects() if r.fill == skin.TILE_BG and r.w > W * 0.1]
 
-    def test_the_focused_tile_is_bigger_than_the_others(self):
-        """The one signal that reads from a sofa."""
-        sc = build(rail_view(cursor=0, focus="grid"))
-        sizes = sorted(r.w for r in self._tile_rects(sc))
-        assert sizes[-1] > sizes[0], "nothing on this screen stands out"
+    def test_the_focused_row_is_marked_unmistakably(self):
+        """It is a list now, so the focused item cannot grow out of its slot —
+        it gets a ring in the same sunny yellow instead, which is the one signal
+        that reads from across a room."""
+        v = View(screen="browse", heading="Bluey", focus="grid", cursor=1,
+                 rail=[RailItem("Bluey", "Bluey", 0, 3)],
+                 tiles=[Tile(f"Episode {i}", "video", f"e{i}", 0) for i in range(4)])
+        sc = skin.build(v, 1280, 720, columns=3, rows=2)
+        rings = [r for r in sc.rects() if r.fill == skin.SUN]
+        assert rings, "nothing marks which row is selected"
 
     def test_and_is_ringed(self):
         sc = build(rail_view(cursor=0, focus="grid"))
@@ -167,12 +172,12 @@ class TestTheOtherScreens:
     def test_the_parent_screen_shows_both_the_state_and_the_reason(self):
         sc = build(View(screen="parent", heading="Choose what Ozzy can watch", rows=[
             ParentRow("Films", "Films", 0, 1, "folder", "block", False, "",
-                      "blocked by “Films”")]))
+                      'blocked by \"Films\"')]))
         joined = " ".join(sc.texts())
-        assert "blocked" in joined and "blocked by “Films”" in joined
+        assert "blocked" in joined and 'blocked by \"Films\"' in joined
 
     def test_playing_draws_no_sky(self):
-        """On the Pi the programme is behind this, and the strip is only the
+        """On the Pi the show is behind this, and the strip is only the
         bottom slice of the screen — a backdrop here is a skyful of clouds
         squashed into it."""
         sc = build(View(screen="playing", now_title="Bluey", position_ms=1000,

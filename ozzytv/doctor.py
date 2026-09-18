@@ -122,7 +122,7 @@ def check_media(settings) -> Check:
     files = sum(1 for r in roots for n in r.walk() if n.is_playable)
     if not files:
         return Check("the media folder", WARN, f"{found[0]} has nothing playable in it",
-                     "copy some films or programmes into it")
+                     "copy some films or shows into it")
     return Check("the media folder", OK, f"{files} playable file(s) under {found[0]}")
 
 
@@ -134,9 +134,10 @@ def check_allowed(settings, store) -> Check:
         total += sum(1 for n in root.walk()
                      if n.is_playable and picks.decide_rel(rules, n.rel).visible)
     if total:
-        return Check("what the child can see", OK, f"{total} programme(s) allowed")
-    return Check("what the child can see", WARN, "nothing is allowed yet",
-                 'ozzytv --allow "/media/ozzy/<folder>"   (this is by design)')
+        return Check("what the child can see", OK, f"{total} program(s)")
+    return Check("what the child can see", WARN,
+                 "nothing on the drive, or all of it is blocked",
+                 'put files in the media folder, or check: ozzytv --scan')
 
 
 def check_pin(store) -> Check:

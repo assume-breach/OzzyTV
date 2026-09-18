@@ -131,7 +131,7 @@ def demo_views():
              Tile("Shadowlands · S1 E10", "video", "c", 0),
              Tile("Sleepytime · S2 E14", "video", "d", 0),
              Tile("Series 3", "folder", "e", 0),
-             Tile("Bin Night · S3 E1", "video", "f", 0, "may not play")]
+             Tile("Bin Night · S3 E1", "video", "f", 0)]
 
     yield "01-home", View(screen="browse", heading="Bluey", subheading="Ozzy TV",
                           tiles=tiles, cursor=0, rail=rail, rail_cursor=1, focus="rail")
@@ -146,10 +146,10 @@ def demo_views():
                             cursor=2, message="PIN saved.", rows=[
         ParentRow("Videos", ".", 0, 0, "folder", "", True, "", "whole folder — new files here show up too"),
         ParentRow("Bluey", "Bluey", 0, 1, "folder", "allow", True, "", "whole folder — new files here show up too"),
-        ParentRow("Series 1", "Bluey/S1", 0, 2, "folder", "", True, "Bluey", "from “Bluey”"),
-        ParentRow("The Magic Xylophone", "Bluey/S1/a", 0, 3, "video", "", True, "Bluey", "from “Bluey”"),
-        ParentRow("Films", "Films", 0, 1, "folder", "block", False, "", "blocked by “Films”"),
-        ParentRow("Alien", "Films/alien", 0, 2, "video", "", False, "Films", "blocked by “Films”"),
+        ParentRow("Series 1", "Bluey/S1", 0, 2, "folder", "", True, "Bluey", 'from \"Bluey\"'),
+        ParentRow("The Magic Xylophone", "Bluey/S1/a", 0, 3, "video", "", True, "Bluey", 'from \"Bluey\"'),
+        ParentRow("Films", "Films", 0, 1, "folder", "block", False, "", 'blocked by \"Films\"'),
+        ParentRow("Alien", "Films/alien", 0, 2, "video", "", False, "Films", 'blocked by \"Films\"'),
         ParentRow("Paddington", "Films/padd", 0, 2, "video", "allow", True, "", ""),
     ])
     # A fresh install. Built from the app's own helper, so this really is the
@@ -176,10 +176,10 @@ def main() -> int:
     for name, view in demo_views():
         sc = skin.build(view, w, h, columns=3, rows=2)
         if view.screen == "playing":
-            # Nothing draws the sky here — on the Pi the programme itself is
+            # Nothing draws the sky here — on the Pi the show itself is
             # behind this strip. Stand something in for it so the mockup reads as
             # a paused picture rather than as a bug.
-            sc.items.insert(0, S.Text(w / 2, h * 0.32, "( the programme is playing here )",
+            sc.items.insert(0, S.Text(w / 2, h * 0.32, "( the show is playing here )",
                                       font=S.BODY, fill="#39344f", anchor="center"))
         render(sc).save(out / f"{name}.png")
         print(f"  {out / name}.png")

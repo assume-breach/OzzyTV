@@ -161,7 +161,7 @@ class FakePlayer:
     """An engine that plays nothing, for tests and for `--fake-player`.
 
     It advances only when `tick_ms` is called, which is what makes the resume and
-    end-of-file behaviour testable without waiting in real time.
+    end-of-file behavior testable without waiting in real time.
     """
 
     def __init__(self, duration_ms: int = 600_000):

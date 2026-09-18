@@ -260,7 +260,7 @@ $MEDIA is on the network as \\\\$HOST\\$SHARE_NAME
 
 $CREDS
 
-Copy programmes in, then allow them for your child — over ssh:
+Copy shows in, then allow them for your child — over ssh:
 
     ozzytv --scan
     ozzytv --allow "$MEDIA/Bluey"

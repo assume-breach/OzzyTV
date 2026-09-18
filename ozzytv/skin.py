@@ -4,12 +4,12 @@ Two briefs that pull in different directions, and both are real. The person
 holding the remote is a grown-up, so the SHAPE is Roku's — a list of places down
 the left, what is in the highlighted place across the right, a big obvious
 selection that never leaves you wondering where you are. What the toddler on the
-sofa gets is the LOOK: a sky with clouds and hills, bright sweet colours, and an
+sofa gets is the LOOK: a sky with clouds and hills, bright sweet colors, and an
 animal on everything.
 
 The animals are not decoration. A toddler cannot read "Bluey" or "Series 1", so
-every shelf and every programme is given a creature and a colour, picked by
-hashing its name — which means they are stable. The same programme is the orange
+every shelf and every show is given a creature and a color, picked by
+hashing its name — which means they are stable. The same show is the orange
 cat today, tomorrow, and after the library is rescanned. That is something a
 child who cannot read can actually use to point at what they want.
 
@@ -52,7 +52,7 @@ TILE_BG = "#2d2276"
 FOCUS = "#ffffff"
 SHADOW = "#1b1350"
 
-# Sweet-shop colours for the creatures. Bright, distinct at a glance, and all
+# Sweet-shop colors for the creatures. Bright, distinct at a glance, and all
 # legible against the tile behind them.
 CREATURE_COLOURS = [
     "#ff8a5c", "#ffd449", "#6fe3a0", "#66d9ff", "#ff9ecd",
@@ -64,18 +64,18 @@ CREATURES = ["cat", "dog", "bear", "rabbit", "owl", "frog", "fish", "duck",
 
 def _digest(name: str) -> bytes:
     """Stable across runs, machines and Python versions — hash() is not: it is
-    randomised per process, so the cat would be a different colour every boot."""
+    randomised per process, so the cat would be a different color every boot."""
     return hashlib.sha256(name.encode("utf-8")).digest()
 
 
 @dataclass(frozen=True)
 class Badge:
     creature: str
-    colour: str
+    color: str
 
 
 def badge_for(name: str) -> Badge:
-    """The creature and colour this name prefers, from its hash alone.
+    """The creature and color this name prefers, from its hash alone.
 
     SEPARATE bytes for the two: deriving both from one 32-bit slice (`h % 12`
     and `h // 12 % 10`) made them correlate badly — five of the first six shelf
@@ -84,7 +84,7 @@ def badge_for(name: str) -> Badge:
     """
     d = _digest(name)
     return Badge(creature=CREATURES[int.from_bytes(d[0:4], "big") % len(CREATURES)],
-                 colour=CREATURE_COLOURS[int.from_bytes(d[4:8], "big") % len(CREATURE_COLOURS)])
+                 color=CREATURE_COLOURS[int.from_bytes(d[4:8], "big") % len(CREATURE_COLOURS)])
 
 
 def assign_badges(names: list[str]) -> dict[str, Badge]:
@@ -98,12 +98,12 @@ def assign_badges(names: list[str]) -> dict[str, Badge]:
     So each name still ASKS for its hashed creature and gets it whenever it is
     free; otherwise it takes the next one along. Deterministic for a given set,
     which is what matters: the same shelf looks the same every time it is drawn,
-    every boot, on any machine. Adding a programme can shuffle the animals on
+    every boot, on any machine. Adding a show can shuffle the animals on
     that one shelf, and that is the price of them being distinct at all.
     """
     out: dict[str, Badge] = {}
     used_creature: set[str] = set()
-    used_colour: set[str] = set()
+    used_color: set[str] = set()
     for name in names:
         want = badge_for(name)
         creature_i = CREATURES.index(want.creature)
@@ -113,58 +113,58 @@ def assign_badges(names: list[str]) -> dict[str, Badge]:
                 break
         else:                       # more items than creatures: start reusing
             c = want.creature
-        colour_i = CREATURE_COLOURS.index(want.colour)
+        color_i = CREATURE_COLOURS.index(want.color)
         for step in range(len(CREATURE_COLOURS)):
-            k = CREATURE_COLOURS[(colour_i + step) % len(CREATURE_COLOURS)]
-            if k not in used_colour:
+            k = CREATURE_COLOURS[(color_i + step) % len(CREATURE_COLOURS)]
+            if k not in used_color:
                 break
         else:
-            k = want.colour
+            k = want.color
         if len(used_creature) >= len(CREATURES):
             used_creature.clear()
-        if len(used_colour) >= len(CREATURE_COLOURS):
-            used_colour.clear()
+        if len(used_color) >= len(CREATURE_COLOURS):
+            used_color.clear()
         used_creature.add(c)
-        used_colour.add(k)
-        out[name] = Badge(creature=c, colour=k)
+        used_color.add(k)
+        out[name] = Badge(creature=c, color=k)
     return out
 
 
 # ------------------------------------------------------------- the creatures
 def creature(sc: Scene, kind: str, cx: float, cy: float, s: float,
-             colour: str, ink: str = "#2a1d6b") -> None:
+             color: str, ink: str = "#2a1d6b") -> None:
     """One animal, built from circles and triangles.
 
-    Vectors rather than emoji: a Raspberry Pi does not reliably have a colour
+    Vectors rather than emoji: a Raspberry Pi does not reliably have a color
     emoji font, and a row of blank boxes is worse than no animals at all.
     """
     dark = ink
     if kind == "cat":
-        sc.add(Poly([(cx - s * .62, cy - s * .35), (cx - s * .30, cy - s * .95), (cx - s * .12, cy - s * .45)], fill=colour),
-               Poly([(cx + s * .62, cy - s * .35), (cx + s * .30, cy - s * .95), (cx + s * .12, cy - s * .45)], fill=colour),
-               Circle(cx, cy, s * .72, fill=colour))
+        sc.add(Poly([(cx - s * .62, cy - s * .35), (cx - s * .30, cy - s * .95), (cx - s * .12, cy - s * .45)], fill=color),
+               Poly([(cx + s * .62, cy - s * .35), (cx + s * .30, cy - s * .95), (cx + s * .12, cy - s * .45)], fill=color),
+               Circle(cx, cy, s * .72, fill=color))
         _face(sc, cx, cy, s, dark, whiskers=True)
     elif kind == "dog":
-        sc.add(Oval(cx - s * .72, cy - s * .1, s * .26, s * .5, fill=_shade(colour)),
-               Oval(cx + s * .72, cy - s * .1, s * .26, s * .5, fill=_shade(colour)),
-               Circle(cx, cy, s * .72, fill=colour),
+        sc.add(Oval(cx - s * .72, cy - s * .1, s * .26, s * .5, fill=_shade(color)),
+               Oval(cx + s * .72, cy - s * .1, s * .26, s * .5, fill=_shade(color)),
+               Circle(cx, cy, s * .72, fill=color),
                Oval(cx, cy + s * .3, s * .34, s * .26, fill="#ffffff"))
         _face(sc, cx, cy, s, dark, snout=True)
     elif kind == "bear":
-        sc.add(Circle(cx - s * .6, cy - s * .58, s * .27, fill=colour),
-               Circle(cx + s * .6, cy - s * .58, s * .27, fill=colour),
-               Circle(cx, cy, s * .72, fill=colour),
+        sc.add(Circle(cx - s * .6, cy - s * .58, s * .27, fill=color),
+               Circle(cx + s * .6, cy - s * .58, s * .27, fill=color),
+               Circle(cx, cy, s * .72, fill=color),
                Oval(cx, cy + s * .28, s * .32, s * .24, fill="#ffffff"))
         _face(sc, cx, cy, s, dark, snout=True)
     elif kind == "rabbit":
-        sc.add(Oval(cx - s * .30, cy - s * .95, s * .17, s * .52, fill=colour),
-               Oval(cx + s * .30, cy - s * .95, s * .17, s * .52, fill=colour),
+        sc.add(Oval(cx - s * .30, cy - s * .95, s * .17, s * .52, fill=color),
+               Oval(cx + s * .30, cy - s * .95, s * .17, s * .52, fill=color),
                Oval(cx - s * .30, cy - s * .95, s * .08, s * .36, fill="#ffd8ef"),
                Oval(cx + s * .30, cy - s * .95, s * .08, s * .36, fill="#ffd8ef"),
-               Circle(cx, cy, s * .70, fill=colour))
+               Circle(cx, cy, s * .70, fill=color))
         _face(sc, cx, cy, s, dark, whiskers=True)
     elif kind == "owl":
-        sc.add(Oval(cx, cy, s * .70, s * .78, fill=colour),
+        sc.add(Oval(cx, cy, s * .70, s * .78, fill=color),
                Circle(cx - s * .30, cy - s * .12, s * .26, fill="#ffffff"),
                Circle(cx + s * .30, cy - s * .12, s * .26, fill="#ffffff"),
                Circle(cx - s * .30, cy - s * .12, s * .12, fill=dark),
@@ -173,9 +173,9 @@ def creature(sc: Scene, kind: str, cx: float, cy: float, s: float,
     elif kind == "frog":
         # Body FIRST. Drawn after the eyes it covered them, and a frog whose eyes
         # are behind its head is a green blob with a line on it.
-        sc.add(Oval(cx, cy + s * .10, s * .72, s * .56, fill=colour),
-               Circle(cx - s * .36, cy - s * .46, s * .27, fill=colour),
-               Circle(cx + s * .36, cy - s * .46, s * .27, fill=colour),
+        sc.add(Oval(cx, cy + s * .10, s * .72, s * .56, fill=color),
+               Circle(cx - s * .36, cy - s * .46, s * .27, fill=color),
+               Circle(cx + s * .36, cy - s * .46, s * .27, fill=color),
                Circle(cx - s * .36, cy - s * .46, s * .17, fill="#ffffff"),
                Circle(cx + s * .36, cy - s * .46, s * .17, fill="#ffffff"),
                Circle(cx - s * .36, cy - s * .44, s * .09, fill=dark),
@@ -184,16 +184,16 @@ def creature(sc: Scene, kind: str, cx: float, cy: float, s: float,
                      (cx + s * .10, cy + s * .34), (cx + s * .30, cy + s * .24)],
                     outline=dark, width=max(2, s * .09)))
     elif kind == "fish":
-        sc.add(Poly([(cx + s * .30, cy), (cx + s * .90, cy - s * .45), (cx + s * .90, cy + s * .45)], fill=_shade(colour)),
-               Oval(cx - s * .10, cy, s * .62, s * .48, fill=colour),
+        sc.add(Poly([(cx + s * .30, cy), (cx + s * .90, cy - s * .45), (cx + s * .90, cy + s * .45)], fill=_shade(color)),
+               Oval(cx - s * .10, cy, s * .62, s * .48, fill=color),
                Circle(cx - s * .38, cy - s * .10, s * .11, fill="#ffffff"),
                Circle(cx - s * .38, cy - s * .10, s * .06, fill=dark))
     elif kind == "duck":
         # A smaller beak and a proper eye. The old one was a big triangle cut out
         # of a plain circle, which reads as Pac-Man rather than as a duck.
         sc.add(Poly([(cx - s * .10, cy - s * .62), (cx + s * .04, cy - s * .98),
-                     (cx + s * .20, cy - s * .60)], fill=_shade(colour)),
-               Circle(cx, cy, s * .70, fill=colour),
+                     (cx + s * .20, cy - s * .60)], fill=_shade(color)),
+               Circle(cx, cy, s * .70, fill=color),
                Poly([(cx + s * .58, cy + s * .06), (cx + s * .96, cy + s * .17),
                      (cx + s * .58, cy + s * .28)], fill="#ff8a5c"),
                Circle(cx + s * .26, cy - s * .18, s * .15, fill="#ffffff"),
@@ -209,34 +209,34 @@ def creature(sc: Scene, kind: str, cx: float, cy: float, s: float,
                Oval(cx, cy + s * .30, s * .14, s * .10, fill=dark))
     elif kind == "lion":
         # A fixed amber mane rather than a darker shade of the body: on a tile the
-        # body is white, so a "shade of white" mane is grey on white and the whole
-        # animal collapses into a grey flower.
+        # body is white, so a "shade of white" mane is gray on white and the whole
+        # animal collapses into a gray flower.
         for i in range(12):
             import math
             a = i * math.pi / 6
             sc.add(Circle(cx + math.cos(a) * s * .80, cy + math.sin(a) * s * .80, s * .26,
                           fill="#ffb347"))
-        sc.add(Circle(cx, cy, s * .66, fill=colour))
+        sc.add(Circle(cx, cy, s * .66, fill=color))
         _face(sc, cx, cy, s, dark, snout=True)
     elif kind == "pig":
-        sc.add(Poly([(cx - s * .66, cy - s * .40), (cx - s * .34, cy - s * .86), (cx - s * .18, cy - s * .44)], fill=colour),
-               Poly([(cx + s * .66, cy - s * .40), (cx + s * .34, cy - s * .86), (cx + s * .18, cy - s * .44)], fill=colour),
-               Circle(cx, cy, s * .72, fill=colour),
-               Oval(cx, cy + s * .26, s * .30, s * .22, fill=_shade(colour)),
+        sc.add(Poly([(cx - s * .66, cy - s * .40), (cx - s * .34, cy - s * .86), (cx - s * .18, cy - s * .44)], fill=color),
+               Poly([(cx + s * .66, cy - s * .40), (cx + s * .34, cy - s * .86), (cx + s * .18, cy - s * .44)], fill=color),
+               Circle(cx, cy, s * .72, fill=color),
+               Oval(cx, cy + s * .26, s * .30, s * .22, fill=_shade(color)),
                Circle(cx - s * .11, cy + s * .26, s * .06, fill=dark),
                Circle(cx + s * .11, cy + s * .26, s * .06, fill=dark))
         _eyes(sc, cx, cy, s, dark)
     else:  # monkey
-        sc.add(Circle(cx - s * .68, cy - s * .10, s * .24, fill=colour),
-               Circle(cx + s * .68, cy - s * .10, s * .24, fill=colour),
-               Circle(cx, cy, s * .72, fill=colour),
+        sc.add(Circle(cx - s * .68, cy - s * .10, s * .24, fill=color),
+               Circle(cx + s * .68, cy - s * .10, s * .24, fill=color),
+               Circle(cx, cy, s * .72, fill=color),
                Oval(cx, cy + s * .18, s * .46, s * .36, fill="#ffe3c4"))
         _face(sc, cx, cy, s, dark, snout=False)
 
 
-def _shade(colour: str) -> str:
+def _shade(color: str) -> str:
     """A slightly deeper version, for ears and tails."""
-    r, g, b = (int(colour[i:i + 2], 16) for i in (1, 3, 5))
+    r, g, b = (int(color[i:i + 2], 16) for i in (1, 3, 5))
     return "#%02x%02x%02x" % (int(r * .78), int(g * .78), int(b * .78))
 
 
@@ -345,7 +345,7 @@ def _cloud(sc: Scene, cx: float, cy: float, r: float) -> None:
 # --------------------------------------------------------------- the screens
 def build(view, w: int, h: int, columns: int = 3, rows: int = 2) -> Scene:
     """One View, as something to draw. Pure — which is what lets the layout be
-    tested ("the focused tile is bigger than its neighbours") and what lets
+    tested ("the focused tile is bigger than its neighbors") and what lets
     tools/mockup.py render exactly what the television will show."""
     sc = Scene(w=w, h=h, bg=SKY_TOP)
     # No sky while something is playing: the picture IS the screen, and on the
@@ -370,9 +370,16 @@ def _hints(sc: Scene, w: int, h: int, pairs: list[tuple[str, str]]) -> None:
     is not something a two-year-old can match to the thing in their hand."""
     x = w * 0.031
     y = h - h * 0.072
+    # ...and they are BUTTONS, not a legend. With a mouse there was no way back
+    # at all: the bar said "Back  out" and nothing happened when you pressed it,
+    # which is worse than not drawing it.
+    presses = {"OK": "key:select", "Back": "key:back", "P": "key:parent",
+               "+ -": "", "0-9": ""}
     for cap, what in pairs:
         cw = max(h * 0.052, h * 0.021 * len(cap) + h * 0.033)
-        sc.add(RoundRect(x, y, cw, h * 0.048, r=h * 0.014, fill=PILL, outline=PANEL_EDGE, width=HAIRLINE * h),
+        sc.add(RoundRect(x, y, cw, h * 0.048, r=h * 0.014, fill=PILL,
+                         outline=PANEL_EDGE, width=HAIRLINE * h,
+                         hit=presses.get(cap) or None),
                Text(x + cw / 2, y + h * 0.024, cap, font=SMALL, fill=INK, anchor="center"))
         sc.add(Text(x + cw + h * 0.014, y + h * 0.024, what, font=SMALL, fill=INK_DIM, anchor="w"))
         x += cw + h * 0.021 + h * 0.011 * len(what) + h * 0.028
@@ -403,7 +410,7 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
                          width=h * 0.006 if on and v.focus == "rail" else 0))
         cx = w * 0.022 + row_h * 0.52
         sc.add(Circle(cx, y + row_h / 2, row_h * 0.36, fill="#ffffff"))
-        creature(sc, b.creature, cx, y + row_h / 2, row_h * 0.30, b.colour)
+        creature(sc, b.creature, cx, y + row_h / 2, row_h * 0.30, b.color)
         sc.add(Text(cx + row_h * 0.52, y + row_h / 2, item.title, font=H2,
                     fill=PILL_ON_INK if on else INK, anchor="w",
                     wrap=rail_w - row_h - w * 0.07, max_lines=1))
@@ -436,50 +443,48 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
         _hints(sc, w, h, [("OK", "choose"), ("Back", "out")])
         return
 
-    tile_badges = assign_badges([t.title for t in v.tiles])
-    gx, gy = h * 0.030, h * 0.034
-    tw = (mw - gx * (columns - 1)) / columns
-    th = (h * 0.70 - gy * (rows - 1)) / rows
-    per_page = columns * rows
+    # A LIST, not a grid of tiles. Big artwork is the right shape for six
+    # things a child recognizes by their pictures; it is the wrong shape for a
+    # folder with forty episodes in it, where the only thing that tells them
+    # apart is the words. A list fits twice as many, sorts the way a season
+    # does, and reads down rather than snaking.
+    badges = assign_badges([t.title for t in v.tiles])
+    row_h = h * 0.088
+    gap = h * 0.014
+    top = h * 0.185
+    per_page = max(1, int((h * 0.70) // (row_h + gap)))
     page = v.cursor // per_page
     for i, tile in enumerate(v.tiles[page * per_page:(page + 1) * per_page]):
-        r, c = divmod(i, columns)
-        x = mx + c * (tw + gx)
-        y = h * 0.175 + r * (th + gy)
-        on = (page * per_page + i) == v.cursor and v.focus == "grid"
-        # The focused tile grows out of its slot — Roku's one unmistakable
-        # signal, and the only one that reads from across a room.
-        pop = th * 0.055 if on else 0
-        X, Y, W, H = x - pop, y - pop, tw + pop * 2, th + pop * 2
+        idx = page * per_page + i
+        y = top + i * (row_h + gap)
+        on = idx == v.cursor and v.focus == "grid"
         if on:
-            sc.add(RoundRect(X - h * 0.012, Y - h * 0.012, W + h * 0.024, H + h * 0.024,
-                             r=h * 0.035, fill=SUN))
-        sc.add(RoundRect(X, Y, W, H, r=h * 0.028, fill=TILE_BG,
-                         hit=f"tile:{page * per_page + i}",
-                         outline=FOCUS if on else PANEL_EDGE, width=h * 0.005 if on else HAIRLINE * h))
-        b = tile_badges[tile.title]
-        art_h = H * 0.60
-        sc.add(RoundRect(X + W * 0.055, Y + H * 0.055, W * 0.89, art_h, r=h * 0.022,
-                         fill=b.colour))
-        # White creature on the bright block — the same trick as the rail badges,
-        # inverted. Drawing them in a darkened version of the tile colour looked
-        # muddy and, worse, low-contrast: a brown lion on a pink tile read as a
-        # smudge from across a room, which is exactly the distance this is used at.
-        creature(sc, b.creature, X + W / 2, Y + H * 0.055 + art_h / 2, art_h * 0.30,
-                 "#ffffff", "#2a1d6b")
+            sc.add(RoundRect(mx - h * 0.008, y - h * 0.008, mw + h * 0.016,
+                             row_h + h * 0.016, r=h * 0.026, fill=SUN))
+        sc.add(RoundRect(mx, y, mw, row_h, r=h * 0.020, fill=TILE_BG,
+                         hit=f"tile:{idx}",
+                         outline=FOCUS if on else PANEL_EDGE,
+                         width=h * 0.004 if on else HAIRLINE * h))
+        b = badges[tile.title]
+        # A small round creature on the left, so a list still looks like this
+        # television and not like a file manager.
+        disc_r = row_h * 0.34
+        cx = mx + row_h * 0.52
+        sc.add(Circle(cx, y + row_h / 2, disc_r, fill=b.color))
+        creature(sc, b.creature, cx, y + row_h / 2, disc_r * 0.78, "#ffffff", "#2a1d6b")
         if tile.kind == "folder":
-            # A folder tab, so a shelf is obviously a shelf and not a programme.
-            tab_w, tab_h = W * 0.34, art_h * 0.17
-            sc.add(RoundRect(X + W * 0.055, Y + H * 0.055 - tab_h * 0.55, tab_w,
-                             tab_h * 1.6, r=h * 0.010, fill=_shade(b.colour)))
-        sc.add(Text(X + W / 2, Y + H * 0.055 + art_h + H * 0.145, tile.title, font=TILE,
-                    fill=INK, anchor="center", wrap=W * 0.88, max_lines=2))
+            sc.add(Text(mx + row_h * 1.02, y + row_h / 2, "▸", font=H2, fill=SUN,
+                        anchor="w"))
+        tx = mx + row_h * (1.28 if tile.kind == "folder" else 1.02)
+        badge_w = mw * 0.22 if tile.badge else 0
+        sc.add(Text(tx, y + row_h / 2, tile.title, font=TILE, fill=INK, anchor="w",
+                    wrap=mw - (tx - mx) - badge_w - mw * 0.03, max_lines=1))
         if tile.badge:
-            bw = W * 0.42
-            sc.add(RoundRect(X + W - bw - W * 0.055, Y + H * 0.055 + art_h - h * 0.045,
-                             bw, h * 0.038, r=h * 0.012, fill=SHADOW),
-                   Text(X + W - bw / 2 - W * 0.055, Y + H * 0.055 + art_h - h * 0.026,
-                        tile.badge, font=SMALL, fill=SUN, anchor="center"))
+            bw = mw * 0.19
+            sc.add(RoundRect(mx + mw - bw - mw * 0.02, y + row_h / 2 - h * 0.021,
+                             bw, h * 0.042, r=h * 0.014, fill=SHADOW),
+                   Text(mx + mw - bw / 2 - mw * 0.02, y + row_h / 2, tile.badge,
+                        font=SMALL, fill=SUN, anchor="center"))
 
     pages = max(1, (len(v.tiles) + per_page - 1) // per_page)
     if pages > 1:
@@ -501,7 +506,7 @@ def _playing(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     sc.add(RoundRect(-h * 0.04, y, w + h * 0.08, bar_h + h * 0.08, r=h * 0.05, fill=PANEL))
     b = badge_for(v.now_title)
     sc.add(Circle(w * 0.055, y + bar_h * 0.26, bar_h * 0.17, fill="#ffffff"))
-    creature(sc, b.creature, w * 0.055, y + bar_h * 0.26, bar_h * 0.14, b.colour)
+    creature(sc, b.creature, w * 0.055, y + bar_h * 0.26, bar_h * 0.14, b.color)
     sc.add(Text(w * 0.105, y + bar_h * 0.24, v.now_title, font=H1, fill=INK, anchor="w"),
            Text(w - w * 0.035, y + bar_h * 0.24,
                 f"{_clock(v.position_ms)} / {_clock(v.duration_ms)}",

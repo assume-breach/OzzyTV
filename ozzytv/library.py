@@ -38,7 +38,7 @@ def sort_key(title: str, source_name: str) -> tuple:
     Episodes go in EPISODE order. Sorting them by their cleaned title looks right
     until a series names its episodes — then 'Hospital', 'Shadowlands', 'The
     Magic Xylophone' is alphabetical order, which is nobody's idea of how to watch
-    a programme, and is impossible to explain to a child.
+    a show, and is impossible to explain to a child.
     """
     ep = episode_of(source_name)
     if ep:
@@ -69,7 +69,7 @@ class Node:
         return [n.rel for n in self.walk() if n is not self]
 
 
-# Tokens that are about the FILE, not about the programme. Dropped from titles.
+# Tokens that are about the FILE, not about the show. Dropped from titles.
 _JUNK = re.compile(
     r"\b("
     r"\d{3,4}[pi]|4k|uhd|hdr|sdr|10bit|8bit|"

@@ -22,7 +22,7 @@ from pathlib import Path
 
 PROBE_TIMEOUT = 20
 
-# What the VideoCore IV block decodes. MPEG-2 and VC-1 need paid licence keys and
+# What the VideoCore IV block decodes. MPEG-2 and VC-1 need paid license keys and
 # are not assumed.
 HARDWARE_CODECS = {"h264", "avc1"}
 # Decodable on the CPU at standard definition, and not above it.

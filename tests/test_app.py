@@ -15,56 +15,41 @@ from ozzytv.picks import ROOT_KEY, Mark
 from ozzytv.playback import PlayState
 
 
-class TestNothingUntilAGrownUpChooses:
-    def test_a_fresh_install_shows_a_menu_not_a_dead_end(self, app):
-        """An EMPTY menu, not a message instead of the menu.
+class TestWhatIsOnTheDriveIsWhatIsOnTheScreen:
+    """You already decided when you copied the file on."""
 
-        It used to throw the whole screen away for a line of text, so a fresh
-        install looked broken rather than unfinished: no logo, no shelves, and
-        no sign that pressing P is how a grown-up fixes it.
-        """
+    def test_a_fresh_install_shows_everything(self, app):
         v = app.view()
         assert v.screen == Screen.BROWSE.value
-        assert v.rail, "no menu at all"
-        assert "Ask a grown-up" in v.message
+        assert v.rail, "no shelves"
+        assert any("Bluey" in s for s in shelves(v))
 
-    def test_and_it_says_what_to_do_next(self, app):
-        """The one time this television has something to say to the grown-up
-        rather than the child — and they are standing in front of it, not
-        reading a README."""
-        steps = app.view().welcome
-        assert len(steps) >= 2
-        joined = " ".join(t + " " + b for t, b in steps).lower()
-        assert "press p" in joined
-        assert any(str(r).lower() in joined for r in app.settings.roots), \
-            "it never says WHERE to put the films"
+    def test_an_empty_drive_still_shows_a_home_screen(self, settings, store, player,
+                                                      clock, tmp_path):
+        """A Roku with nothing installed still shows you a Roku."""
+        settings.media_roots = [str(tmp_path / "nothing")]
+        a = OzzyApp(settings, store, player, clock=clock)
+        v = a.view()
+        assert v.screen == Screen.BROWSE.value
+        assert v.rail and v.tiles
+        assert v.heading == "Home"
 
-    def test_it_does_not_look_like_a_fault(self, app):
-        """A child cannot tell 'broken' from 'not set up', so it must not read as
-        an error at all."""
-        m = app.view().message
-        assert "error" not in m.lower() and "fail" not in m.lower()
+    def test_and_says_where_to_put_films(self, settings, store, player, clock,
+                                         tmp_path):
+        a = OzzyApp(settings, store, player, clock=clock)
+        settings.media_roots = [str(tmp_path / "nothing")]
+        a = OzzyApp(settings, store, player, clock=clock)
+        joined = " ".join(t + " " + b for t, b in a.view().welcome).lower()
+        assert any(str(r).lower() in joined for r in a.settings.roots)
 
-    def test_a_drive_with_no_media_says_something_different(self, settings, store,
-                                                            player, tmp_path):
-        empty = tmp_path / "Empty"
-        empty.mkdir()
-        settings.media_roots = [str(empty)]
-        v = OzzyApp(settings, store, player).view()
-        assert "plug in the drive" in v.message
-
-    def test_allowing_one_folder_shows_only_that(self, app, store):
-        store.set_mark(app.roots[0].root, "Bluey", Mark.ALLOW)
+    def test_blocking_one_folder_hides_only_that(self, app, store):
+        before = set(shelves(app.view()))
+        assert "Bluey" in before
+        store.set_mark(app.roots[0].root, "Bluey", Mark.BLOCK)
         app.rescan()
-        assert shelves(app.view()) == ["Bluey"]
-
-    def test_a_blocked_shelf_never_appears(self, app, store):
-        root = app.roots[0].root
-        store.set_mark(root, ROOT_KEY, Mark.ALLOW)
-        store.set_mark(root, "Films", Mark.BLOCK)
-        app.rescan()
-        assert "Films" not in shelves(app.view())
-        assert "Bluey" in shelves(app.view())
+        after = set(shelves(app.view()))
+        assert "Bluey" not in after
+        assert after, "blocking one shelf emptied the whole menu"
 
 
 class TestTheGrid:
@@ -80,7 +65,7 @@ class TestTheGrid:
     def test_episodes_are_in_episode_order_not_alphabetical(self, allow_everything):
         """Sorting by the cleaned title looks right until a series names its
         episodes — then it is Hospital, Shadowlands, The Magic Xylophone, which is
-        nobody's idea of how to watch a programme."""
+        nobody's idea of how to watch a show."""
         app = allow_everything
         pick_shelf(app, "Bluey")
         into_tiles(app)
@@ -249,7 +234,7 @@ class TestWatching:
             press(app, Action.VOLUME_UP)
         assert app.view().volume == app.settings.volume_max
 
-    def test_the_end_of_a_programme_returns_to_the_shelf(self, allow_everything, player):
+    def test_the_end_of_a_show_returns_to_the_shelf(self, allow_everything, player):
         app = allow_everything
         pick_shelf(app, "Bluey"); into_tiles(app)
         press(app, Action.SELECT, Action.SELECT, Action.SELECT)
@@ -307,88 +292,38 @@ class TestPickingUpWhereWeLeftOff:
         assert app.view().resumed_from_ms == 0
 
 
-class TestTheGrownUpGate:
-    def test_the_parent_key_asks_for_a_pin(self, allow_everything, store):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT)
-        assert app.view().screen == Screen.PIN.value
+class TestTheGrownUpScreenOpensStraightAway:
+    """There is no PIN. A lock on the settings screen is worth having when the
+    person filling the drive is not the person holding the remote; here they are
+    the same person, and a PIN set once and then half-remembered is a tax on the
+    only user this machine has."""
 
-    def test_the_right_pin_gets_in(self, allow_everything):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT, "d1", "d3", "d7", "d9", Action.SELECT)
-        assert app.view().screen == Screen.PARENT.value
+    def test_the_parent_key_opens_it(self, allow_everything):
+        press(allow_everything, Action.PARENT)
+        assert allow_everything.screen is Screen.PARENT
 
-    def test_the_wrong_pin_does_not(self, allow_everything):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT, "d0", "d0", "d0", "d0", Action.SELECT)
-        v = app.view()
-        assert v.screen == Screen.PIN.value and "Wrong PIN" in v.pin_error
+    def test_no_keypad_appears(self, allow_everything):
+        press(allow_everything, Action.PARENT)
+        assert allow_everything.view().screen != Screen.PIN.value
+        assert allow_everything.view().pin_digits == 0
 
-    def test_guessing_starts_costing_time(self, allow_everything, clock):
-        """Ten thousand combinations and a bored child with a whole afternoon."""
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT)
-        for _ in range(4):
-            press(app, "d0", "d0", "d0", "d0", Action.SELECT)
-        assert app.view().lock_seconds > 0
+    def test_it_lists_what_is_on_the_drive(self, allow_everything):
+        press(allow_everything, Action.PARENT)
+        rows = allow_everything.view().rows
+        assert rows, "the grown-up screen has nothing on it"
+        assert any("Bluey" in r.title for r in rows)
 
-    def test_and_the_right_pin_is_refused_while_it_is_waiting(self, allow_everything):
-        """Otherwise the delay only inconveniences someone guessing wrong — which
-        is nobody, once they know the PIN."""
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT)
-        for _ in range(4):
-            press(app, "d0", "d0", "d0", "d0", Action.SELECT)
-        press(app, "d1", "d3", "d7", "d9", Action.SELECT)
-        assert app.view().screen == Screen.PIN.value
-
-    def test_the_wait_passes(self, allow_everything, clock):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT)
-        for _ in range(4):
-            press(app, "d0", "d0", "d0", "d0", Action.SELECT)
-        clock.advance(3600)
-        press(app, "d1", "d3", "d7", "d9", Action.SELECT)
-        assert app.view().screen == Screen.PARENT.value
-
-    def test_a_lockout_survives_pulling_the_plug(self, allow_everything, store,
-                                                 settings, player, clock):
-        """The first thing anyone tries."""
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT)
-        for _ in range(4):
-            press(app, "d0", "d0", "d0", "d0", Action.SELECT)
-        reborn = OzzyApp(settings, store, player, clock=clock)
-        assert reborn.pin.lockout().locked(clock()) is True
-
-    def test_a_box_with_no_pin_yet_lets_the_first_grown_up_in(self, allow_everything):
-        """Otherwise the parent is locked out of the device they just set up."""
-        app = allow_everything
-        press(app, Action.PARENT)
-        v = app.view()
-        assert v.screen == Screen.PARENT.value and "Set a PIN" in v.message
-
-    def test_the_keypad_never_shows_the_digits(self, allow_everything):
-        app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT, "d1", "d3")
-        v = app.view()
-        assert v.pin_digits == 2 and "1" not in v.heading
+    def test_back_returns_to_the_shows(self, allow_everything):
+        press(allow_everything, Action.PARENT, Action.BACK)
+        assert allow_everything.screen is Screen.BROWSE
 
 
 class TestTheParentScreen:
     @pytest.fixture()
     def parent(self, allow_everything):
+        """Straight in — there is no PIN any more."""
         app = allow_everything
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT, "d1", "d3", "d7", "d9", Action.SELECT)
+        press(app, Action.PARENT)
         return app
 
     def test_it_lists_the_whole_library_not_just_the_allowed_part(self, parent):
@@ -405,22 +340,33 @@ class TestTheParentScreen:
         # Films is visible (the root is allowed), so the FIRST press must hide it.
         assert marks == ["block", "allow", ""]
 
-    def test_a_row_says_where_its_answer_came_from(self, parent):
+    def test_a_row_shows_by_default_with_nobody_having_said_so(self, parent):
         r = next(r for r in parent.view().rows if r.rel == "Bluey/Series 1")
-        assert r.effective is True and r.inherited_from == ROOT_KEY
+        assert r.effective is True
+        assert r.mark == "", "nothing was marked, so nothing should claim to be"
 
-    def test_allowing_a_folder_warns_that_it_is_a_standing_yes(self, parent):
-        r = next(r for r in parent.view().rows if r.rel == ROOT_KEY)
-        assert "new files here show up too" in r.note
-
-    def test_an_unchosen_row_says_so(self, allow_everything, store):
-        store.clear_marks(allow_everything.roots[0].root)
+    def test_a_blocked_folder_is_still_listed_here(self, allow_everything):
+        """Built from the pruned tree, blocking a folder made it vanish from the
+        very screen you would use to unblock it."""
         app = allow_everything
+        app.store.set_mark(app.roots[0].root, "Bluey", Mark.BLOCK)
         app.rescan()
-        app.pin.set_pin("1379")
-        press(app, Action.PARENT, "d1", "d3", "d7", "d9", Action.SELECT)
-        r = next(r for r in app.view().rows if r.rel == "Films")
-        assert r.note == "not chosen yet"
+        app.handle(Action.PARENT)
+        r = next(r for r in app.view().rows if r.rel == "Bluey")
+        assert r.mark == "block" and r.effective is False
+        assert "hidden" in r.note.lower() or "stays hidden" in r.note.lower()
+
+    def test_and_is_gone_from_what_the_child_sees(self, allow_everything):
+        app = allow_everything
+        app.store.set_mark(app.roots[0].root, "Bluey", Mark.BLOCK)
+        app.rescan()
+        assert "Bluey" not in shelves(app.view())
+
+    def test_an_untouched_row_says_it_is_shown(self, allow_everything):
+        allow_everything.handle(Action.PARENT)
+        rows = allow_everything.view().rows
+        assert rows
+        assert all(r.effective for r in rows), "something is hidden that nobody hid"
 
     def test_a_change_reaches_the_child_immediately(self, parent):
         row = next(i for i, r in enumerate(parent.view().rows) if r.rel == "Films")
@@ -438,27 +384,6 @@ class TestTheParentScreen:
         press(parent, Action.QUIT)
         assert parent.should_quit is True
 
-    def test_the_pin_can_be_changed_from_here(self, parent):
-        press(parent, Action.PARENT)                    # 'set a new PIN'
-        assert parent.view().pin_prompt == "set"
-        press(parent, "d2", "d4", "d6", "d8", Action.SELECT)
-        assert parent.view().pin_prompt == "confirm"
-        press(parent, "d2", "d4", "d6", "d8", Action.SELECT)
-        assert parent.view().screen == Screen.PARENT.value
-        assert parent.pin.check("2468") is True
-
-    def test_a_mistyped_confirmation_starts_again(self, parent):
-        press(parent, Action.PARENT)
-        press(parent, "d2", "d4", "d6", "d8", Action.SELECT)
-        press(parent, "d1", "d1", "d1", "d1", Action.SELECT)
-        v = parent.view()
-        assert v.pin_prompt == "set" and "did not match" in v.pin_error
-        assert parent.pin.check("1379") is True, "the old PIN must still work"
-
-    def test_an_obvious_pin_is_refused_with_a_reason(self, parent):
-        press(parent, Action.PARENT)
-        press(parent, "d1", "d2", "d3", "d4", Action.SELECT)
-        assert "simple run" in parent.view().pin_error
 
 
 class TestNothingCrashesTheTelevision:

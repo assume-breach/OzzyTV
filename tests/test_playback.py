@@ -1,7 +1,7 @@
 """Playing something, and remembering where we got to.
 
 VLC does the playing. What is tested here is everything VLC has no opinion
-about — and every one of these is a thing a child notices: a programme that
+about — and every one of these is a thing a child notices: a show that
 starts again from the beginning, a film that replays its last minute for ever,
 a television that has gone silent.
 """
@@ -79,7 +79,7 @@ class TestPickingUpWhereWeLeftOff:
         assert store.get_resume(video) is None
 
     def test_a_replaced_file_starts_again(self, session, player, video, store):
-        """Same name, different programme. Resuming twenty minutes in would drop a
+        """Same name, different show. Resuming twenty minutes in would drop a
         child into the middle of something nobody chose."""
         session.start(video, "Film")
         player.tick_ms(300_000)
@@ -132,7 +132,7 @@ class TestSeeking:
         assert session.seek(999_999) <= player.duration_ms()
 
     def test_pause_writes_the_position_down_immediately(self, session, player, video, store):
-        """A paused programme is one somebody walked away from."""
+        """A paused show is one somebody walked away from."""
         session.start(video, "Film")
         player.tick_ms(120_000)
         session.tick()

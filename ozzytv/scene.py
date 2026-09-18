@@ -11,7 +11,7 @@ the actual screen — if the tile is in the wrong place in the PNG, it is in the
 wrong place on the television.
 
 It also means the layout is testable: "the focused tile is bigger than its
-neighbours" is an assertion about a Scene, not about pixels.
+neighbors" is an assertion about a Scene, not about pixels.
 """
 from __future__ import annotations
 

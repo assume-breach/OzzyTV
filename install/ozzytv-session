@@ -52,7 +52,7 @@ if command -v xrandr >/dev/null 2>&1; then
     fi
 fi
 
-# Screen blanking off: a programme is not idle because nobody has touched a key
+# Screen blanking off: a show is not idle because nobody has touched a key
 # for ten minutes.
 xset s off
 xset -dpms
