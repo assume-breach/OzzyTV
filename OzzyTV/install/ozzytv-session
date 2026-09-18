@@ -1,0 +1,97 @@
+#!/bin/sh
+# The X session Ozzy TV runs as. There is no window manager and no desktop on
+# purpose: a Raspberry Pi 3 has a gigabyte of RAM and video wants most of it,
+# and — more to the point — with nothing else on the screen there is nothing for
+# a child to reach by accident. No taskbar, no alt-tab, no other window.
+set -u
+
+# Where install.sh put the app. Rewritten by the installer. PYTHONPATH as well as
+# the .pth it also writes: either alone is enough, and a .pth that lands in a
+# site-packages directory this Python does not read is otherwise a black screen
+# with no explanation on it.
+OZZYTV_APP_DIR=/opt/ozzytv
+[ -d "$OZZYTV_APP_DIR" ] && export PYTHONPATH="$OZZYTV_APP_DIR${PYTHONPATH:+:$PYTHONPATH}"
+
+LOG=/tmp/ozzytv-last-error.txt
+
+# Say WHICH Ozzy TV this is, in the log, every time. Without it a failure on the
+# television and a clean bill of health over ssh are indistinguishable, and the
+# obvious explanations — a stale install, a second copy winning on sys.path, a
+# .pth pointing somewhere else — cannot be told apart from a photograph of the
+# screen. Every one of those has now happened.
+identify() {
+    echo "--- which Ozzy TV is this? ---"
+    echo "build:  $(cat "$OZZYTV_APP_DIR/BUILD" 2>/dev/null || echo 'no BUILD stamp')"
+    echo "cwd:    $(pwd)"
+    echo "user:   $(id -un)   display: ${DISPLAY:-unset}"
+    python3 - <<'EOF' 2>&1 || true
+import sys
+try:
+    import ozzytv, ozzytv.tkview as t
+    print("package:", ozzytv.__file__)
+    print("tkview: ", t.__file__)
+except Exception as e:
+    print("import: ", type(e).__name__, e)
+print("sys.path:", sys.path[:4])
+EOF
+    echo "------------------------------"
+}
+
+# Screen blanking off: a programme is not idle because nobody has touched a key
+# for ten minutes.
+xset s off
+xset -dpms
+xset s noblank
+
+# Hide the pointer. A child will find it and leave it in the middle of the
+# picture — and a bare white X on a black screen is the classic "nothing is
+# running" look.
+# -idle 3, not 0: the pointer has to be usable for the grown-up setting this up,
+# and invisible the moment it stops moving, because a child WILL find the mouse
+# and then let go of it with the arrow in the middle of the picture.
+command -v unclutter >/dev/null 2>&1 && unclutter -idle 3 -root &
+
+# Put the reason on the SCREEN. Until this existed, an app that could not start
+# left a black screen and an X cursor: X was up, nothing had drawn, and the
+# explanation was in the journal where nobody standing in front of a television
+# is going to look.
+show_failure() {
+    if command -v xmessage >/dev/null 2>&1; then
+        {
+            echo "Ozzy TV could not start."
+            echo
+            tail -n 40 "$LOG" 2>/dev/null
+            echo
+            echo "From a terminal (Ctrl-Alt-F2, or ssh in):"
+            echo "    ozzytv --doctor"
+        } | xmessage -file - -geometry 900x600+40+40 -bg "#241a5e" -fg white \
+                     -timeout 45 >/dev/null 2>&1 &
+    fi
+}
+
+fails=0
+while : ; do
+    start=$(date +%s)
+    # Keep the output: it is both what goes in the journal and what is shown on
+    # the screen if this turns out not to be a one-off.
+    { identify; python3 -m ozzytv "$@" 2>&1; } | tee "$LOG"
+    ran=$(( $(date +%s) - start ))
+
+    if [ "$ran" -lt 5 ]; then
+        fails=$((fails + 1))
+    else
+        fails=0
+    fi
+
+    if [ "$fails" -eq 3 ]; then
+        show_failure
+    fi
+    if [ "$fails" -ge 3 ]; then
+        printf "\n  Ozzy TV keeps stopping as soon as it starts.\n"
+        printf "  Run:  ozzytv --doctor\n"
+        printf "  Or:   journalctl -u ozzytv@%s -n 50 --no-pager\n\n" "$(id -un)"
+        sleep 30
+    else
+        sleep 2
+    fi
+done

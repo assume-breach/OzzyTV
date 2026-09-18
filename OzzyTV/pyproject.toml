@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ozzytv"
+version = "0.1.0"
+description = "A television for a child, on a Raspberry Pi, with VLC doing the playing"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+# Nothing here. VLC, its Python bindings and Tk all come from the distribution on
+# a Raspberry Pi (see install/install.sh) — pulling python-vlc from PyPI onto a Pi
+# gets you bindings that may not match the libvlc apt installed, which fails at
+# import with a message about a missing symbol.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+ozzytv = "ozzytv.__main__:main"
+
+[tool.setuptools]
+packages = ["ozzytv"]
+
+[project.urls]
+Homepage = "https://github.com/assume-breach/OzzyTV"
+Source = "https://github.com/assume-breach/OzzyTV"
