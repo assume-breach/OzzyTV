@@ -86,7 +86,7 @@ fi
 say "installing Samba"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq || warn "apt-get update failed — carrying on with what is cached"
-apt-get install -y --no-install-recommends samba samba-common-bin \
+apt-get install -y --no-install-recommends samba samba-common-bin smbclient \
   || die "could not install Samba. Fix the errors above and re-run."
 # So the Pi turns up by itself in Finder and in Windows' Network list. Neither
 # is required to USE the share, so neither is fatal.
@@ -220,6 +220,30 @@ else
       sudo ./install/share.sh --private
   and use a login, or turn on 'Insecure guest logons' in Windows.
   Macs and Linux connect as guest without complaining."
+fi
+
+# ---- did it actually work? ------------------------------------------------
+# "systemctl enable" returning 0 means systemd accepted the unit, not that a
+# laptop can see the folder. Ask Samba itself, the way a client would.
+PROBLEMS=""
+systemctl is-active smbd >/dev/null 2>&1 \
+  || PROBLEMS="$PROBLEMS\n  - smbd is not running (systemctl status smbd)"
+if command -v smbclient >/dev/null 2>&1; then
+  if [ "$PRIVATE" -eq 0 ]; then
+    smbclient -N -L localhost 2>/dev/null | grep -q "$SHARE_NAME" \
+      || PROBLEMS="$PROBLEMS\n  - Samba is running but does not offer '$SHARE_NAME'"
+    smbclient -N "//localhost/$SHARE_NAME" -c 'ls' >/dev/null 2>&1 \
+      || PROBLEMS="$PROBLEMS\n  - the share exists but refuses a guest connection"
+  fi
+else
+  warn "smbclient is not installed, so this could not test the share from the
+         outside. Install it with: sudo apt install smbclient"
+fi
+if [ -n "$PROBLEMS" ]; then
+  printf '\n\033[1;31mThe share is configured but not working:\033[0m'
+  printf "$PROBLEMS\n\n"
+  printf 'Look at:  sudo testparm -s ; journalctl -u smbd -n 30 --no-pager\n\n'
+  exit 1
 fi
 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"

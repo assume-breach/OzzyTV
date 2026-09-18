@@ -415,7 +415,14 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     mx = rail_w + w * 0.030
     mw = w - mx - w * 0.030
     sc.add(Text(mx, h * 0.072, v.heading, font=H1, fill=INK, anchor="w"))
-    if v.subheading:
+    if v.welcome:
+        # The home screen with an empty library. It is a home SCREEN, not a page
+        # of instructions — so what to do next takes the subheading's line
+        # rather than a row of its own, which had nowhere to go but into the
+        # tiles.
+        sc.add(Text(mx, h * 0.125, v.welcome[0][1], font=SMALL, fill=SUN,
+                    anchor="w", wrap=mw, max_lines=1))
+    elif v.subheading:
         sc.add(Text(mx, h * 0.125, v.subheading, font=SMALL, fill=INK_DIM, anchor="w"))
 
     if not v.tiles and v.welcome:
@@ -520,8 +527,11 @@ def _welcome(sc: Scene, v, mx: float, mw: float, w: int, h: int) -> None:
     top = h * 0.185
     for i, (title, body) in enumerate(v.welcome[:3]):
         y = top + i * (card_h + gap)
+        # Clickable. This is the ONE screen where a grown-up is certain to be
+        # the one standing there, most likely with a mouse, and until now it was
+        # the one screen with nothing on it a pointer could press.
         sc.add(RoundRect(mx, y, mw, card_h, r=h * 0.028, fill=TILE_BG,
-                         outline=PANEL_EDGE, width=HAIRLINE * h))
+                         outline=PANEL_EDGE, width=HAIRLINE * h, hit="grownups"))
         # A numbered disc, in the same sunny yellow as the focus ring, so the
         # order reads before any of the words do.
         cx, cy, rr = mx + card_h * 0.42, y + card_h / 2, card_h * 0.24

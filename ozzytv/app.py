@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from . import library, picks
+from . import discs, library, picks
 from .library import Kind, Node
 from .picks import Mark, Rules
 from .playback import PlaybackSession, PlayState, SEEK_BIG_MS, SEEK_SMALL_MS
@@ -140,7 +140,8 @@ RECENT_KEY = "\x00recent"
 LOOSE_KEY = "\x00loose"
 RECENT_LIMIT = 12
 
-WELCOME_KEY = "\x00welcome"
+HOME_KEY = "\x00home"
+PARENT_REL = "\x00parent"
 
 NOTHING_ALLOWED = ("Nothing to watch yet.\n\n"
                    "Ask a grown-up to choose some programmes for you.")
@@ -439,6 +440,9 @@ class OzzyApp:
     # -- kid: the two panes --
     def _browse_key(self, action: Action, value: str) -> None:
         rail = self._sync_rail(self._rail())
+        if not rail:
+            self._home_key(action)
+            return
         grid = self._grid()
         cols = max(1, self.settings.columns)
         if self.focus is Pane.RAIL:
@@ -485,6 +489,77 @@ class OzzyApp:
         elif action is Action.BACK:
             self.focus = Pane.RAIL
 
+    def _home_key(self, action: Action) -> None:
+        """The home screen with an empty library.
+
+        Its tiles are not library nodes, so none of the folder navigation
+        applies — but it still has to feel like the same screen, which means
+        Left/Right along the row and OK to press one.
+        """
+        tiles = self._home_tiles()
+        if not tiles:
+            return
+        self.focus = Pane.GRID
+        self.cursor = min(self.cursor, len(tiles) - 1)
+        if action is Action.LEFT:
+            self.cursor = max(0, self.cursor - 1)
+        elif action is Action.RIGHT:
+            self.cursor = min(len(tiles) - 1, self.cursor + 1)
+        elif action is Action.UP:
+            self.cursor = 0
+        elif action is Action.SELECT:
+            self._open_home_tile(tiles[self.cursor])
+        # Back does nothing on purpose. At the top there is nowhere to go, and
+        # holding Back is how a child looks for a way out of an app.
+
+    def _home_tiles(self) -> list[Tile]:
+        """What the home screen offers when the library is empty.
+
+        Always something to press. A DVD drive is listed even with no disc in
+        it — a tile that appears and disappears depending on what is loaded is
+        worse than one that says "no disc" — and there is always a way in to
+        the grown-up screen, which is otherwise a keypress nobody can guess.
+        """
+        tiles = []
+        for i, d in enumerate(discs.find()):
+            tiles.append(Tile(title=d.title, kind=discs.DVD_KIND,
+                              rel=f"{discs.DVD_REL}:{i}", root_index=-1,
+                              badge="" if d.has_disc else "no disc"))
+        tiles.append(Tile(title="Grown-ups", kind="parent", rel=PARENT_REL,
+                          root_index=-1))
+        return tiles
+
+    def _open_home_tile(self, tile: Tile) -> None:
+        if tile.kind == "parent":
+            self._open_pin("parent")
+        elif tile.kind == discs.DVD_KIND:
+            self._play_disc(tile)
+
+    def _play_disc(self, tile: Tile) -> None:
+        """Hand libVLC the disc.
+
+        A DVD is not covered by the allow/block rules — there is nothing on the
+        drive to have made a decision about until it is spinning. Putting a disc
+        in is itself the grown-up act, which is the same reasoning the rules
+        already use for a USB stick, in reverse.
+        """
+        try:
+            i = int(tile.rel.rsplit(":", 1)[1])
+            disc = discs.find()[i]
+        except (ValueError, IndexError):
+            self.screen = Screen.MESSAGE
+            self.message = "That disc drive has gone.\n\nAsk a grown-up."
+            return
+        if not disc.has_disc:
+            self.screen = Screen.MESSAGE
+            self.message = "There is no disc in the drive.\n\nPut one in and try again."
+            return
+        # The MRL as a STRING. Path("dvd:///dev/sr0") collapses the double
+        # slash to one and hands VLC an address that points nowhere, which is a
+        # black screen with nothing in the log to explain it.
+        self.playback.start(disc.mrl, tile.title)
+        self.screen = Screen.PLAYING
+
     # ------------------------------------------------------------- pointing
     def click(self, target: str) -> None:
         """Press a thing by name — "rail:2", "tile:5".
@@ -496,6 +571,10 @@ class OzzyApp:
         for the same reason every other decision does: it can be tested.
         """
         kind, _, n = target.partition(":")
+        if kind == "grownups":
+            # The first-boot cards. Every one of them ends at the same place.
+            self.handle(Action.PARENT)
+            return
         if not n.isdigit():
             return
         i = int(n)
@@ -508,6 +587,12 @@ class OzzyApp:
                 self.cursor = 0
         elif kind == "tile":
             grid = self._grid()
+            if not self._rail():
+                tiles = self._home_tiles()
+                if 0 <= i < len(tiles):
+                    self.cursor = i
+                    self._open_home_tile(tiles[i])
+                return
             if 0 <= i < len(grid):
                 # Move to it AND open it. One click, because a click that only
                 # moved a highlight would need a second one nobody would guess.
@@ -788,17 +873,18 @@ class OzzyApp:
 
         rail = self._sync_rail(self._rail())
         if not rail:
-            # A MENU with nothing on it, not a message INSTEAD of the menu.
-            # Throwing the whole screen away for a line of text meant a fresh
-            # install looked broken rather than empty: no logo, no shelves, and
-            # no sign that pressing P is how a grown-up fixes it. The layout is
-            # the thing that says "this is working, it is just waiting for you".
+            # THE HOME SCREEN, always. Not a message instead of it, and not a
+            # page of instructions instead of it either: a Roku with nothing
+            # installed still shows you a Roku. An empty library is a home
+            # screen with an empty shelf on it — the layout is the thing that
+            # says "this is working, it is waiting for you".
             any_media = any(r.children for r in self.roots)
             return View(screen=Screen.BROWSE.value,
-                        heading="Nothing to watch yet",
-                        subheading="Ozzy TV",
-                        rail=[RailItem("Getting started", WELCOME_KEY, -1, 0, True)],
+                        heading="Home", subheading="Ozzy TV",
+                        rail=[RailItem("Home", HOME_KEY, -1, 0, True)],
                         rail_cursor=0, focus=Pane.RAIL.value,
+                        tiles=self._home_tiles(),
+                        cursor=min(self.cursor, max(0, len(self._home_tiles()) - 1)),
                         message=NOTHING_ALLOWED if any_media else NO_MEDIA,
                         welcome=welcome_steps(self.settings, allowed=any_media))
         items = self._grid()

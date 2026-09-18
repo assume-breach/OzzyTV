@@ -305,9 +305,12 @@ class TestItSaysWhatItInstalled:
         assert "installed" in stamp
 
     def test_and_printed_where_somebody_will_see_it(self, install):
-        assert "Ozzy TV is installed." in install().stdout
+        """From the SAME run that wrote it. Comparing a stamp against a second
+        install's output only worked while both landed in the same minute."""
+        out = install().stdout
+        assert "Ozzy TV is installed." in out
         stamp = (install.root / "opt" / "ozzytv" / "BUILD").read_text().strip()
-        assert stamp in install().stdout
+        assert stamp in out
 
 
 class TestRunningItAgain:

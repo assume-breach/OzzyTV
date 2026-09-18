@@ -217,9 +217,12 @@ class TestEveryScreenPaints:
         tkview.render()
         drawn = " ".join(str(t) for t in texts(tkview.canvas))
         assert "ozzy" in drawn, "the logo went with the menu"
-        assert "Getting started" in drawn
-        assert "Copy programmes in" in drawn
-        assert "Press P" in drawn, "no way of knowing how a grown-up gets in"
+        assert "Home" in drawn, "a Roku with nothing installed still shows a Roku"
+        assert "Grown-ups" in drawn, "no way in for whoever has to fix it"
+        # Which step leads depends on whether the DRIVE is the problem: with
+        # films present but none allowed, choosing is the thing left to do.
+        assert ("Press P" in drawn or "/media" in drawn or "Videos" in drawn), \
+            "nothing saying what to do"
 
     def test_a_long_title_does_not_stop_the_paint(self, tkview, library_dir):
         # 200, not 300: ext4 caps a filename at 255 bytes, so a longer one tests

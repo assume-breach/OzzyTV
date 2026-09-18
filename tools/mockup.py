@@ -154,12 +154,14 @@ def demo_views():
     ])
     # A fresh install. Built from the app's own helper, so this really is the
     # first screen somebody sees rather than a guess at it.
-    from ozzytv.app import WELCOME_KEY, welcome_steps
+    from ozzytv.app import HOME_KEY, welcome_steps
     from ozzytv.config import Settings
     yield "06-nothing-yet", View(
-        screen="browse", heading="Nothing to watch yet", subheading="Ozzy TV",
-        rail=[RailItem("Getting started", WELCOME_KEY, -1, 0, True)],
-        rail_cursor=0, focus="rail",
+        screen="browse", heading="Home", subheading="Ozzy TV",
+        rail=[RailItem("Home", HOME_KEY, -1, 0, True)],
+        rail_cursor=0, focus="grid", cursor=0,
+        tiles=[Tile("DVD", "dvd", "\x00dvd:0", -1, "no disc"),
+               Tile("Grown-ups", "parent", "\x00parent", -1)],
         welcome=welcome_steps(Settings(media_roots=["/media/ozzy"]), allowed=False))
 
 

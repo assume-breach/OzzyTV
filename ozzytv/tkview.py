@@ -73,9 +73,11 @@ class TkView:
             # exactly like a crash. An explicit geometry needs no WM.
             self.root.geometry(
                 f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
-            # A child will find the mouse pointer and leave it in the picture.
-            self.root.config(cursor="none")
+            # The pointer is hidden further down, once the widgets it has to be
+            # set on actually exist.
+            self._hide_the_pointer = True
         else:
+            self._hide_the_pointer = False
             self.root.geometry("1280x720")
 
         # The frame libVLC paints into. It sits BEHIND everything and is raised
@@ -91,6 +93,9 @@ class TkView:
         self.overlay = tk.Canvas(self.root, bg=skin.PANEL, highlightthickness=0, bd=0)
         self.overlay.place_forget()
         _raise(self.canvas)
+        # A child will find the mouse pointer and leave it in the picture.
+        if self._hide_the_pointer:
+            self._cursor("none")
 
         self._fonts: dict[tuple, tkfont.Font] = {}
         self._attached = False
@@ -116,13 +121,28 @@ class TkView:
         the mouse and let go of it.
         """
         try:
-            self.root.config(cursor="")
+            self._cursor("")
             if self._hide_pointer_after is not None:
                 self.root.after_cancel(self._hide_pointer_after)
             self._hide_pointer_after = self.root.after(
-                POINTER_IDLE_MS, lambda: self.root.config(cursor="none"))
+                POINTER_IDLE_MS, lambda: self._cursor("none"))
         except Exception:
             log.debug("could not show the pointer", exc_info=True)
+
+    def _cursor(self, shape: str) -> None:
+        """Set the pointer on EVERY widget, not just the toplevel.
+
+        A child window with no cursor of its own inherits its parent's, so
+        setting it once ought to be enough — ought to. When it is not, what you
+        get is X11's root-window pointer, the big black X, sitting on top of a
+        perfectly good menu and looking exactly like a crash. Four calls is
+        cheaper than finding out which of them was the one that mattered.
+        """
+        for widget in (self.root, self.video, self.canvas, self.overlay):
+            try:
+                widget.config(cursor=shape)
+            except Exception:
+                pass
 
     def _on_click(self, event) -> None:
         """Press whatever is under the pointer.

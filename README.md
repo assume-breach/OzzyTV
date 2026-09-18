@@ -297,6 +297,25 @@ to restart. Ozzy TV watches folder modification times, one stat per folder
 rather than a walk of the drive, and only while nothing is playing. You still
 have to allow them for your child; that part is deliberate and stays manual.
 
+## DVDs
+
+A USB DVD drive shows up on the home screen. Put a disc in, press it, and VLC
+plays it — menus and all. There is nothing to rip.
+
+The installer adds `libdvdnav4` and `libdvdread8`, which read the disc
+structure. They do **not** decrypt: most commercial DVDs are CSS scrambled, and
+Debian ships the decryptor as a source package you build yourself, for licensing
+reasons. Home-made and unencrypted discs play as they are; for the rest:
+
+```sh
+sudo apt install libdvd-pkg && sudo dpkg-reconfigure libdvd-pkg
+```
+
+The drive is listed even with no disc in it, marked "no disc" — a tile that
+appears and vanishes depending on what is loaded is worse than one that tells
+you. A disc is not covered by the allow/block rules: putting one in the machine
+is itself the grown-up act.
+
 ## Driving it with a mouse
 
 Made for a remote, and it stays that way — but a mouse works. Click a shelf to

@@ -187,10 +187,49 @@ def check_drawing() -> Check:
                  "ozzytv --selftest   (for the rest)")
 
 
+def check_share() -> Check:
+    """Is the media folder actually on the network?
+
+    Not "did the installer run" — whether a laptop could see it right now. The
+    share was reported as set up while being invisible from the network, which
+    is a distinction only a check like this one makes.
+    """
+    if not shutil.which("smbd") and not Path("/etc/samba/smb.conf").is_file():
+        return Check("the network share", WARN, "Samba is not installed",
+                     "sudo ./install/share.sh")
+    active = subprocess.run(["systemctl", "is-active", "smbd"],
+                            capture_output=True, text=True).stdout.strip()
+    if active != "active":
+        return Check("the network share", FAIL, f"smbd is {active or 'not running'}",
+                     "sudo systemctl restart smbd   (then: sudo ./install/share.sh)")
+    if shutil.which("smbclient"):
+        r = subprocess.run(["smbclient", "-N", "-L", "localhost"],
+                           capture_output=True, text=True, timeout=15)
+        if "ozzytv" not in r.stdout:
+            return Check("the network share", FAIL,
+                         "smbd is running but is not offering the share",
+                         "sudo ./install/share.sh")
+    return Check("the network share", OK, "//" + os.uname().nodename + "/ozzytv")
+
+
+def check_discs() -> Check:
+    """A DVD drive, and whether there is anything in it."""
+    from . import discs
+    found = discs.find()
+    if not found:
+        return Check("DVD drive", WARN, "none found",
+                     "plug a USB DVD drive in; it appears on the home screen")
+    loaded = [d for d in found if d.has_disc]
+    if not loaded:
+        return Check("DVD drive", OK, f"{found[0].device} (no disc in it)")
+    return Check("DVD drive", OK, f"{loaded[0].device} has a disc")
+
+
 def run(settings, store) -> list[Check]:
     return [check_build(), check_package(), check_tk(), check_vlc(),
             check_drawing(), check_display(),
             check_media(settings), check_allowed(settings, store),
+            check_share(), check_discs(),
             check_pin(store), check_service()]
 
 

@@ -92,7 +92,15 @@ class VlcPlayer:
         self._mp.set_xwindow(window_id)
 
     def open(self, path: Path, start_ms: int = 0) -> None:
-        media = self._instance.media_new_path(str(path))
+        # A DVD is not a file. media_new_path() quotes its argument as a
+        # filesystem path, so "dvd:///dev/sr0" would be looked for as a file of
+        # that name and simply not found — a black screen and nothing in the
+        # log worth reading. media_new() takes an MRL.
+        text = str(path)
+        if "://" in text:
+            media = self._instance.media_new(text)
+        else:
+            media = self._instance.media_new_path(text)
         self._mp.set_media(media)
         self._duration_hint = 0
         self._mp.play()
@@ -216,7 +224,10 @@ class FakePlayer:
 
 @dataclass
 class NowPlaying:
-    path: Path
+    # A Path for a file, a str for anything with a scheme in it — a DVD is
+    # "dvd:///dev/sr0", and Path() would quietly collapse the // to a single
+    # slash and hand VLC an address that points nowhere.
+    path: Path | str
     title: str
     position_ms: int = 0
     duration_ms: int = 0
@@ -240,7 +251,7 @@ class PlaybackSession:
         self.volume = self._clamp_volume(settings.volume)
 
     # ---- starting and stopping ------------------------------------------
-    def start(self, path: Path, title: str) -> NowPlaying:
+    def start(self, path: Path | str, title: str) -> NowPlaying:
         resume_ms = self._resume_point(path)
         self.player.open(path, start_ms=resume_ms)
         self.player.set_volume(self.volume)
@@ -251,7 +262,11 @@ class PlaybackSession:
         self._pending_seek_ms = resume_ms
         return self.now
 
-    def _resume_point(self, path: Path) -> int:
+    def _resume_point(self, path: Path | str) -> int:
+        # Nothing to resume on a disc: the resume store is keyed on a file, and
+        # a DVD has its own idea of where it was anyway.
+        if isinstance(path, str) and "://" in path:
+            return 0
         if not self.settings.resume:
             return 0
         saved = self.store.get_resume(path)
@@ -294,9 +309,13 @@ class PlaybackSession:
             self._save_position()
         return state
 
+    def _is_file(self) -> bool:
+        return self.now is not None and not (isinstance(self.now.path, str)
+                                             and "://" in self.now.path)
+
     def _save_position(self, force: bool = False) -> None:
-        if self.now is None:
-            return
+        if self.now is None or not self._is_file():
+            return                      # a disc has no resume point to keep
         pos, dur = self.now.position_ms, self.now.duration_ms
         if dur <= 0:
             return

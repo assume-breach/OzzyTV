@@ -93,6 +93,16 @@ apt-get install -y --no-install-recommends \
     vlc python3-vlc python3-tk xserver-xorg xinit x11-xserver-utils x11-utils unclutter \
     fonts-dejavu-core \
   || die "could not install the packages Ozzy TV needs. Fix the errors above and re-run."
+# DVDs. libdvdnav/libdvdread are what VLC uses to read the disc structure and
+# the menus. They do NOT decrypt: most commercial DVDs are CSS scrambled, and
+# Debian ships the decryptor as a source package you build yourself
+# (libdvd-pkg) for licensing reasons. Home-made and unencrypted discs play with
+# what is here; for the rest, run:
+#     sudo apt install libdvd-pkg && sudo dpkg-reconfigure libdvd-pkg
+apt-get install -y --no-install-recommends libdvdnav4 libdvdread8 \
+  || apt-get install -y --no-install-recommends libdvdnav4 libdvdread7 \
+  || warn "the DVD libraries did not install; discs will not play."
+
 apt-get install -y --no-install-recommends ffmpeg cec-utils \
   || warn "ffmpeg/cec-utils did not install. Ozzy TV works without them; you lose
          the 'may not play on this Pi' warning and the TV-remote option."

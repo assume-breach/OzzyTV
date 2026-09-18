@@ -161,3 +161,24 @@ class TestClickingWhereYouActuallyClicked:
         assert "event.x_root" not in src and "event.y_root" not in src, \
             "screen coordinates again"
         assert "event.x" in src
+
+
+class TestTheFirstBootScreen:
+    """The one screen where a grown-up is certainly the one standing there,
+    most likely with a mouse — and until now the one screen with nothing on it
+    a pointer could press."""
+
+    def test_its_tiles_are_clickable_like_any_others(self, app):
+        v = app.view()
+        assert v.welcome, "not the first-boot screen"
+        assert v.tiles, "a home screen with nothing on it to press"
+        sc = skin.build(v, 1280, 720, columns=3, rows=2)
+        targets = {i.hit for i in sc.items if isinstance(i, RoundRect) and i.hit}
+        for i in range(len(v.tiles)):
+            assert f"tile:{i}" in targets, f"home tile {i} does nothing when clicked"
+
+    def test_and_clicking_grown_ups_opens_the_way_in(self, app):
+        v = app.view()
+        i = [n for n, t in enumerate(v.tiles) if t.kind == "parent"][0]
+        app.click(f"tile:{i}")
+        assert app.screen.value in ("pin", "parent")
