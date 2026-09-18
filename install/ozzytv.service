@@ -1,0 +1,32 @@
+[Unit]
+Description=Ozzy TV
+Documentation=https://github.com/%i/ozzy-tv
+After=systemd-user-sessions.service plymouth-quit-wait.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+User=%i
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+# X needs to own the virtual terminal, which means starting it from here rather
+# than from a login shell. vt1 keeps it where the boot messages were, so there is
+# no flicker to another console on the way up.
+# `python3 -m ozzytv` puts the CURRENT DIRECTORY first on sys.path, ahead of
+# /opt/ozzytv. A stray copy of the source in whatever directory this happens to
+# start in would therefore win, and the app would run code nobody installed —
+# which looks exactly like a fix that did not take. Both of these close that:
+# / has no ozzytv in it, and PYTHONSAFEPATH drops the implicit entry outright.
+WorkingDirectory=/
+Environment=PYTHONSAFEPATH=1
+ExecStart=/usr/bin/startx /usr/local/bin/ozzytv-session -- :0 vt1 -keeptty -nolisten tcp
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
