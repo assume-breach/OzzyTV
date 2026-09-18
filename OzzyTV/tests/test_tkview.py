@@ -208,11 +208,18 @@ class TestEveryScreenPaints:
         drawn = " ".join(str(t) for t in texts(tkview.canvas))
         assert "Choose what Ozzy can watch" in drawn and "Films" in drawn
 
-    def test_the_ask_a_grown_up_screen(self, tkview, store):
+    def test_the_first_boot_screen_is_a_menu(self, tkview, store):
+        """With nothing allowed it still draws the television — logo, shelf list
+        and all — plus what to do next. Replacing the whole screen with a line of
+        text made a fresh install look broken rather than unfinished."""
         store.clear_marks(tkview.app.roots[0].root)
         tkview.app.rescan()
         tkview.render()
-        assert "Ask a grown-up" in " ".join(str(t) for t in texts(tkview.canvas))
+        drawn = " ".join(str(t) for t in texts(tkview.canvas))
+        assert "ozzy" in drawn, "the logo went with the menu"
+        assert "Getting started" in drawn
+        assert "Copy programmes in" in drawn
+        assert "Press P" in drawn, "no way of knowing how a grown-up gets in"
 
     def test_a_long_title_does_not_stop_the_paint(self, tkview, library_dir):
         # 200, not 300: ext4 caps a filename at 255 bytes, so a longer one tests

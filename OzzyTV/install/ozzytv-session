@@ -37,6 +37,21 @@ EOF
     echo "------------------------------"
 }
 
+# Take the best mode the screen offers. With no window manager and no desktop
+# nothing else is going to ask, and X's fallback is whatever it could work out
+# from EDID on its own — often a conservative mode well below the panel. The
+# menus are vector-drawn and scale to whatever they are given, so a low mode is
+# not a smaller picture, it is a SOFT one: the display stretches it back up.
+if command -v xrandr >/dev/null 2>&1; then
+    OUTPUT="$(xrandr | awk '/ connected/{print $1; exit}')"
+    if [ -n "${OUTPUT:-}" ]; then
+        # --auto takes the mode the display says it prefers, which is its native
+        # one on anything modern.
+        xrandr --output "$OUTPUT" --auto 2>/dev/null || true
+        echo "screen: $(xrandr | awk '/\*/{print $1; exit}') on $OUTPUT"
+    fi
+fi
+
 # Screen blanking off: a programme is not idle because nobody has touched a key
 # for ten minutes.
 xset s off

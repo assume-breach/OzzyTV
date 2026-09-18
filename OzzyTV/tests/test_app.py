@@ -16,10 +16,28 @@ from ozzytv.playback import PlayState
 
 
 class TestNothingUntilAGrownUpChooses:
-    def test_a_fresh_install_shows_no_programmes(self, app):
+    def test_a_fresh_install_shows_a_menu_not_a_dead_end(self, app):
+        """An EMPTY menu, not a message instead of the menu.
+
+        It used to throw the whole screen away for a line of text, so a fresh
+        install looked broken rather than unfinished: no logo, no shelves, and
+        no sign that pressing P is how a grown-up fixes it.
+        """
         v = app.view()
-        assert v.screen == Screen.MESSAGE.value
+        assert v.screen == Screen.BROWSE.value
+        assert v.rail, "no menu at all"
         assert "Ask a grown-up" in v.message
+
+    def test_and_it_says_what_to_do_next(self, app):
+        """The one time this television has something to say to the grown-up
+        rather than the child — and they are standing in front of it, not
+        reading a README."""
+        steps = app.view().welcome
+        assert len(steps) >= 2
+        joined = " ".join(t + " " + b for t, b in steps).lower()
+        assert "press p" in joined
+        assert any(str(r).lower() in joined for r in app.settings.roots), \
+            "it never says WHERE to put the films"
 
     def test_it_does_not_look_like_a_fault(self, app):
         """A child cannot tell 'broken' from 'not set up', so it must not read as
@@ -460,4 +478,6 @@ class TestNothingCrashesTheTelevision:
         app = allow_everything
         shutil.rmtree(library_dir)
         app.rescan()
-        assert app.view().screen == Screen.MESSAGE.value
+        v = app.view()
+        assert v.screen == Screen.BROWSE.value, "the menu vanished with the drive"
+        assert v.welcome, "and left nothing saying what to do about it"

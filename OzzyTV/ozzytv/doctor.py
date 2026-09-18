@@ -92,8 +92,19 @@ def check_display() -> Check:
     import tkinter as tk
     try:
         root = tk.Tk()
-        size = f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}"
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         root.destroy()
+        size = f"{sw}x{sh}"
+        # Everything is drawn as a fraction of the screen, so a low mode is not a
+        # smaller picture — it is a soft one, because the display stretches it
+        # back up. That reads as "the graphics are grainy", which sends people
+        # looking at the artwork rather than at the mode.
+        if sw < 1280:
+            return Check("a screen to draw on", WARN,
+                         f"{os.environ['DISPLAY']} running at only {size}",
+                         "xrandr --output <output> --auto   (the session does "
+                         "this at boot; if it stuck, the display's EDID is "
+                         "probably not being read)")
         return Check("a screen to draw on", OK, f"{os.environ['DISPLAY']} ({size})")
     except Exception as e:
         return Check("a screen to draw on", FAIL, f"{type(e).__name__}: {e}",

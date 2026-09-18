@@ -41,6 +41,13 @@ INK_DIM = "#c9c2ff"
 PILL = "#33268a"
 PILL_ON = "#ffd449"
 PILL_ON_INK = "#2a1d6b"
+# Line weights as fractions of screen height, not pixels. Every other measure in
+# this file already scales; these were literals, so on a 4K panel they stayed two
+# and three physical pixels — hairlines that shimmer and read as a soft, grainy
+# picture next to shapes that grew with the screen.
+HAIRLINE = 2 / 720
+RULE = 3 / 720
+
 TILE_BG = "#2d2276"
 FOCUS = "#ffffff"
 SHADOW = "#1b1350"
@@ -365,7 +372,7 @@ def _hints(sc: Scene, w: int, h: int, pairs: list[tuple[str, str]]) -> None:
     y = h - h * 0.072
     for cap, what in pairs:
         cw = max(h * 0.052, h * 0.021 * len(cap) + h * 0.033)
-        sc.add(RoundRect(x, y, cw, h * 0.048, r=h * 0.014, fill=PILL, outline=PANEL_EDGE, width=2),
+        sc.add(RoundRect(x, y, cw, h * 0.048, r=h * 0.014, fill=PILL, outline=PANEL_EDGE, width=HAIRLINE * h),
                Text(x + cw / 2, y + h * 0.024, cap, font=SMALL, fill=INK, anchor="center"))
         sc.add(Text(x + cw + h * 0.014, y + h * 0.024, what, font=SMALL, fill=INK_DIM, anchor="w"))
         x += cw + h * 0.021 + h * 0.011 * len(what) + h * 0.028
@@ -411,6 +418,11 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     if v.subheading:
         sc.add(Text(mx, h * 0.125, v.subheading, font=SMALL, fill=INK_DIM, anchor="w"))
 
+    if not v.tiles and v.welcome:
+        _welcome(sc, v, mx, mw, w, h)
+        _hints(sc, w, h, [("P", "grown-ups"), ("OK", "choose")])
+        return
+
     if not v.tiles:
         sc.add(Text(mx + mw / 2, h * 0.45, "Nothing on this shelf yet", font=H2,
                     fill=INK_DIM, anchor="center"))
@@ -437,7 +449,7 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
                              r=h * 0.035, fill=SUN))
         sc.add(RoundRect(X, Y, W, H, r=h * 0.028, fill=TILE_BG,
                          hit=f"tile:{page * per_page + i}",
-                         outline=FOCUS if on else PANEL_EDGE, width=h * 0.005 if on else 2))
+                         outline=FOCUS if on else PANEL_EDGE, width=h * 0.005 if on else HAIRLINE * h))
         b = tile_badges[tile.title]
         art_h = H * 0.60
         sc.add(RoundRect(X + W * 0.055, Y + H * 0.055, W * 0.89, art_h, r=h * 0.022,
@@ -496,18 +508,44 @@ def _playing(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     _hints(sc, w, h, [("OK", "carry on"), ("Back", "stop"), ("+ -", "louder")])
 
 
+def _welcome(sc: Scene, v, mx: float, mw: float, w: int, h: int) -> None:
+    """The first-boot screen: what to do next, in order, on the television.
+
+    Numbered cards rather than a paragraph, because this is read from across a
+    room by somebody holding a memory stick, and because a list of three things
+    with one of them done is a different feeling from a wall of text.
+    """
+    card_h = h * 0.155
+    gap = h * 0.030
+    top = h * 0.185
+    for i, (title, body) in enumerate(v.welcome[:3]):
+        y = top + i * (card_h + gap)
+        sc.add(RoundRect(mx, y, mw, card_h, r=h * 0.028, fill=TILE_BG,
+                         outline=PANEL_EDGE, width=HAIRLINE * h))
+        # A numbered disc, in the same sunny yellow as the focus ring, so the
+        # order reads before any of the words do.
+        cx, cy, rr = mx + card_h * 0.42, y + card_h / 2, card_h * 0.24
+        sc.add(Circle(cx, cy, rr, fill=SUN))
+        sc.add(Text(cx, cy, str(i + 1), font=H2, fill="#2a1d6b", anchor="center"))
+        tx = mx + card_h * 0.82
+        sc.add(Text(tx, y + card_h * 0.34, title, font=TILE, fill=INK, anchor="w",
+                    wrap=mw - card_h - w * 0.02, max_lines=1))
+        sc.add(Text(tx, y + card_h * 0.66, body, font=SMALL, fill=INK_DIM, anchor="w",
+                    wrap=mw - card_h - w * 0.02, max_lines=2))
+
+
 def _pin(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     cw, ch = w * 0.44, h * 0.46
     x, y = (w - cw) / 2, (h - ch) / 2
     sc.add(RoundRect(x + h * 0.010, y + h * 0.014, cw, ch, r=h * 0.045, fill=SHADOW),
-           RoundRect(x, y, cw, ch, r=h * 0.045, fill=PANEL, outline=PANEL_EDGE, width=3))
+           RoundRect(x, y, cw, ch, r=h * 0.045, fill=PANEL, outline=PANEL_EDGE, width=RULE * h))
     creature(sc, "owl", x + cw / 2, y + ch * 0.22, h * 0.055, "#c39bff")
     sc.add(Text(x + cw / 2, y + ch * 0.44, v.heading, font=H1, fill=INK, anchor="center"))
     n = max(v.pin_digits, 0)
     for i in range(max(4, n)):
         dx = x + cw / 2 + (i - (max(4, n) - 1) / 2) * h * 0.055
         sc.add(Circle(dx, y + ch * 0.62, h * 0.018,
-                      fill=SUN if i < n else PANEL, outline=PANEL_EDGE, width=2))
+                      fill=SUN if i < n else PANEL, outline=PANEL_EDGE, width=HAIRLINE * h))
     msg = (f"Too many tries — wait {v.lock_seconds} seconds" if v.lock_seconds
            else v.pin_error or "Type the PIN, then press OK")
     sc.add(Text(x + cw / 2, y + ch * 0.82, msg, font=BODY,
@@ -518,7 +556,7 @@ def _pin(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
 
 def _parent(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     sc.add(RoundRect(w * 0.020, h * 0.030, w - w * 0.040, h - h * 0.150,
-                     r=h * 0.035, fill=PANEL, outline=PANEL_EDGE, width=3))
+                     r=h * 0.035, fill=PANEL, outline=PANEL_EDGE, width=RULE * h))
     sc.add(Text(w * 0.045, h * 0.082, v.heading, font=H1, fill=INK, anchor="w"))
     if v.message:
         sc.add(Text(w * 0.045, h * 0.135, v.message, font=SMALL, fill=SUN, anchor="w"))
@@ -535,7 +573,7 @@ def _parent(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
                          r=0, fill=None, outline=None, hit=f"row:{idx}"))
         if idx == v.cursor:
             sc.add(RoundRect(w * 0.035, y - h * 0.008, w - w * 0.070, row_h - h * 0.006,
-                             r=h * 0.014, fill=PILL, outline=SUN, width=2))
+                             r=h * 0.014, fill=PILL, outline=SUN, width=HAIRLINE * h))
         state = {"allow": "✔ allowed", "block": "✖ blocked"}.get(
             row.mark, "· " + ("shown" if row.effective else "hidden"))
         sc.add(Text(w * 0.055 + row.depth * w * 0.018, y + row_h * 0.30,
@@ -553,7 +591,7 @@ def _message(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     cw, ch = w * 0.62, h * 0.48
     x, y = (w - cw) / 2, (h - ch) / 2
     sc.add(RoundRect(x + h * 0.010, y + h * 0.014, cw, ch, r=h * 0.045, fill=SHADOW),
-           RoundRect(x, y, cw, ch, r=h * 0.045, fill=PANEL, outline=PANEL_EDGE, width=3))
+           RoundRect(x, y, cw, ch, r=h * 0.045, fill=PANEL, outline=PANEL_EDGE, width=RULE * h))
     creature(sc, "cat", x + cw * 0.30, y + ch * 0.30, h * 0.070, "#ff8a5c")
     creature(sc, "dog", x + cw * 0.70, y + ch * 0.31, h * 0.062, "#ffd449")
     sc.add(Text(x + cw / 2, y + ch * 0.68, v.message, font=H2, fill=INK,

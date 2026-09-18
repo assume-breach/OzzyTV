@@ -152,9 +152,15 @@ def demo_views():
         ParentRow("Alien", "Films/alien", 0, 2, "video", "", False, "Films", "blocked by “Films”"),
         ParentRow("Paddington", "Films/padd", 0, 2, "video", "allow", True, "", ""),
     ])
-    yield "06-nothing-yet", View(screen="message",
-                                 message="Nothing to watch yet.\n\nAsk a grown-up to choose "
-                                         "some programmes for you.")
+    # A fresh install. Built from the app's own helper, so this really is the
+    # first screen somebody sees rather than a guess at it.
+    from ozzytv.app import WELCOME_KEY, welcome_steps
+    from ozzytv.config import Settings
+    yield "06-nothing-yet", View(
+        screen="browse", heading="Nothing to watch yet", subheading="Ozzy TV",
+        rail=[RailItem("Getting started", WELCOME_KEY, -1, 0, True)],
+        rail_cursor=0, focus="rail",
+        welcome=welcome_steps(Settings(media_roots=["/media/ozzy"]), allowed=False))
 
 
 def main() -> int:

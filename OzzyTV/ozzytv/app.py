@@ -129,6 +129,8 @@ class View:
     # parent
     rows: list[ParentRow] = field(default_factory=list)
     parent_hint: str = ""
+    # the first-boot menu: (title, explanation) for each thing left to do
+    welcome: list[tuple[str, str]] = field(default_factory=list)
 
 
 # What a child sees when a parent has not chosen anything yet. Deliberately not
@@ -138,10 +140,34 @@ RECENT_KEY = "\x00recent"
 LOOSE_KEY = "\x00loose"
 RECENT_LIMIT = 12
 
+WELCOME_KEY = "\x00welcome"
+
 NOTHING_ALLOWED = ("Nothing to watch yet.\n\n"
                    "Ask a grown-up to choose some programmes for you.")
 NO_MEDIA = ("No films or programmes found.\n\n"
             "Ask a grown-up to plug in the drive with the videos on it.")
+
+
+def welcome_steps(settings, allowed: bool) -> list[tuple[str, str]]:
+    """What to do next, on the screen, in order.
+
+    A first boot is the one time this television has something to say to the
+    grown-up rather than to the child, and the grown-up is standing in front of
+    it rather than reading a README.
+    """
+    where = str(settings.roots[0]) if settings.roots else "/media/ozzy"
+    steps = [("Copy programmes in",
+              f"Put films and episodes in {where} — over the network, or on a "
+              f"memory stick."),
+             ("Choose what Ozzy can watch",
+              "Press P, type the PIN, and allow the ones you are happy with.")]
+    if allowed:
+        # The drive is not the problem, so lead with the step that is.
+        steps.reverse()
+    steps.append(("Nothing is visible until you allow it",
+                  "That is deliberate. A stick someone plugs in later shows up "
+                  "to you, not to your child."))
+    return steps
 
 
 class OzzyApp:
@@ -762,9 +788,19 @@ class OzzyApp:
 
         rail = self._sync_rail(self._rail())
         if not rail:
+            # A MENU with nothing on it, not a message INSTEAD of the menu.
+            # Throwing the whole screen away for a line of text meant a fresh
+            # install looked broken rather than empty: no logo, no shelves, and
+            # no sign that pressing P is how a grown-up fixes it. The layout is
+            # the thing that says "this is working, it is just waiting for you".
             any_media = any(r.children for r in self.roots)
-            return View(screen=Screen.MESSAGE.value,
-                        message=NOTHING_ALLOWED if any_media else NO_MEDIA)
+            return View(screen=Screen.BROWSE.value,
+                        heading="Nothing to watch yet",
+                        subheading="Ozzy TV",
+                        rail=[RailItem("Getting started", WELCOME_KEY, -1, 0, True)],
+                        rail_cursor=0, focus=Pane.RAIL.value,
+                        message=NOTHING_ALLOWED if any_media else NO_MEDIA,
+                        welcome=welcome_steps(self.settings, allowed=any_media))
         items = self._grid()
         tiles = []
         for ri, n in items:
