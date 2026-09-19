@@ -65,6 +65,8 @@ KEYMAP = {
 class TkView:
     def __init__(self, app: OzzyApp, fullscreen: bool = True):
         self.app = app
+        # Before anything can call _cursor(), which happens during this method.
+        self._cursor_now: str | None = None
         self.root = tk.Tk()
         self.root.title("Ozzy TV")
         self.root.configure(bg=skin.SKY_TOP)
@@ -173,7 +175,18 @@ class TkView:
         perfectly good menu and looking exactly like a crash. Four calls is
         cheaper than finding out which of them was the one that mattered.
         """
+        if shape == self._cursor_now:
+            return                      # nothing to do; see below for why it matters
+        self._cursor_now = shape
         for widget in (self.root, self.video, self.canvas, self.overlay):
+            # NOT the video frame while something is playing. Reconfiguring the
+            # window libVLC is drawing into makes X clear and repaint it, and
+            # <Motion> fires on every pixel of movement — so moving the mouse
+            # over a film strobed it black. The frame keeps whatever it was last
+            # given, which is correct either way: the pointer is hidden over a
+            # film, and the menus are not the video window.
+            if widget is self.video and self.app.screen is Screen.PLAYING:
+                continue
             try:
                 widget.config(cursor=shape)
             except Exception:
@@ -259,8 +272,10 @@ class TkView:
         # and doing that four times a second against an SD card is a steady drip
         # of I/O for a grid that is not changing. Keypresses redraw on their own.
         screen = self.app.screen.value
-        if screen != self._last_screen or screen == Screen.PLAYING.value:
+        if (screen != self._last_screen or screen == Screen.PLAYING.value
+                or self.app.needs_redraw):
             self._last_screen = screen
+            self.app.needs_redraw = False
             self.render()
         self.root.after(TICK_MS, self._tick)
 

@@ -208,6 +208,15 @@ class OzzyApp:
         # One background watcher, not a device read per frame. See discs.Watcher.
         self.discs = discs.Watcher()
         self.discs.start()
+        # Set when something changed that the screen cannot work out for itself.
+        # The drawing layer redraws on a keypress and when the SCREEN changes;
+        # a film appearing on the drive is neither, so without this the library
+        # refreshed and the television went on showing the old picture until
+        # somebody happened to press a button.
+        self.needs_redraw = False
+        # Seeded here, so the first tick compares against what was really there
+        # rather than against nothing and reporting a change that never happened.
+        self._discs_seen = tuple((d.device, d.has_disc) for d in self.discs.snapshot())
         self._library_seen: tuple = ()
         self._looked_at = 0.0
         self.rescan()
@@ -548,6 +557,13 @@ class OzzyApp:
         # Back does nothing on purpose. At the top there is nowhere to go, and
         # holding Back is how a child looks for a way out of an app.
 
+    def _discs_changed(self) -> bool:
+        now = tuple((d.device, d.has_disc) for d in self.discs.snapshot())
+        if now != getattr(self, "_discs_seen", None):
+            self._discs_seen = now
+            return True
+        return False
+
     def _home_tiles(self) -> list[Tile]:
         """What the home screen offers when the library is empty.
 
@@ -701,7 +717,34 @@ class OzzyApp:
         self.screen = Screen.PLAYING
 
     # -- kid: watching --
+    def _playing_disc(self) -> bool:
+        n = self.playback.now
+        return bool(n and isinstance(n.path, str) and n.path.startswith("dvd://"))
+
+    def _disc_key(self, action: Action) -> bool:
+        """Work the disc's own menu.
+
+        A DVD menu belongs to the disc — libVLC draws it and only libVLC can
+        move its highlight. Treated as ordinary playback keys, Up seeks forward
+        a minute and OK pauses, which is exactly how you end up unable to start
+        the film and able to pause a menu.
+
+        Back is ours: it is the only way off the disc, and a disc menu with no
+        way out is a television that needs unplugging.
+        """
+        where = {Action.UP: "up", Action.DOWN: "down", Action.LEFT: "left",
+                 Action.RIGHT: "right", Action.SELECT: "activate",
+                 Action.PLAY_PAUSE: "activate"}.get(action)
+        if where is None:
+            return False
+        return bool(self.player.navigate(where))
+
     def _playing_key(self, action: Action, value: str) -> None:
+        if self._playing_disc() and action is not Action.BACK:
+            # Volume is still ours; everything else the disc wants.
+            if action not in (Action.VOLUME_UP, Action.VOLUME_DOWN):
+                if self._disc_key(action):
+                    return
         if action in (Action.SELECT, Action.PLAY_PAUSE):
             self.playback.toggle_pause()
         elif action is Action.BACK:
@@ -747,7 +790,12 @@ class OzzyApp:
             now = self._clock()
             if now - self._looked_at >= LOOK_FOR_NEW_EVERY:
                 self._looked_at = now
-                self.look_for_new_shows()
+                if self.look_for_new_shows():
+                    self.needs_redraw = True
+            # A disc going in or coming out changes the Home shelf, and is as
+            # invisible to the drawing layer as a new folder is.
+            if self._discs_changed():
+                self.needs_redraw = True
             return
         state = self.playback.tick()
         if state in (PlayState.ENDED, PlayState.ERROR):

@@ -153,6 +153,30 @@ class VlcPlayer:
             v.Error: PlayState.ERROR,
         }.get(s, PlayState.IDLE)
 
+    # libvlc_navigate_* — the DVD menu actions, as libVLC numbers them. Written
+    # out rather than imported from the bindings because the name of the enum has
+    # moved between python-vlc versions and the numbers have not moved since
+    # libVLC 2.0.
+    NAVIGATE = {"activate": 0, "up": 1, "down": 2, "left": 3, "right": 4}
+
+    def navigate(self, where: str) -> bool:
+        """Work the disc's OWN menu.
+
+        A DVD menu is drawn by the disc, not by us, so the only thing that can
+        move its highlight is libVLC. Handled as ordinary playback keys instead,
+        Up seeks forward by a minute and OK pauses — which is how you end up
+        unable to start the film, and able to pause a menu.
+        """
+        mode = self.NAVIGATE.get(where)
+        if mode is None:
+            return False
+        try:
+            self._mp.navigate(mode)
+            return True
+        except Exception:
+            log.debug("navigate(%s) failed", where, exc_info=True)
+            return False
+
     def release(self) -> None:
         try:
             self._mp.stop()
@@ -169,7 +193,10 @@ class FakePlayer:
     end-of-file behavior testable without waiting in real time.
     """
 
+    NAVIGATE = {"activate": 0, "up": 1, "down": 2, "left": 3, "right": 4}
+
     def __init__(self, duration_ms: int = 600_000):
+        self.navigated: list[str] = []
         self.window_id: int | None = None
         self.path: Path | None = None
         self._pos = 0
@@ -214,6 +241,12 @@ class FakePlayer:
 
     def state(self) -> PlayState:
         return self._state
+
+    def navigate(self, where: str) -> bool:
+        if where not in self.NAVIGATE:
+            return False
+        self.navigated.append(where)
+        return True
 
     def release(self) -> None:
         self.released = True
