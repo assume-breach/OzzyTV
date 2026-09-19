@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -60,6 +62,56 @@ def _readable(device: str) -> bool:
         return False
     finally:
         os.close(fd)
+
+
+class Watcher:
+    """Looks at the drive on its OWN thread, and answers instantly from a cache.
+
+    Probing an optical drive means opening the device and reading from it, and a
+    drive that is spinning up blocks that read for SECONDS. O_NONBLOCK does not
+    help; the kernel waits for the disc. Called from the drawing code — which is
+    where the tile list is built, four times a second and on every keypress —
+    that stalls the whole interface the instant a disc starts spinning. Which is
+    to say: the instant you press Play on a DVD, the television locks up with a
+    black screen and no buttons, and never comes back.
+
+    So the probe runs in a daemon thread and `snapshot()` returns whatever it
+    last found. Being a second out of date about a disc drive costs nothing.
+    """
+
+    def __init__(self, candidates=CANDIDATES, every: float = 3.0):
+        self._candidates = candidates
+        self._every = every
+        self._discs: list[Disc] = []
+        self._lock = threading.Lock()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        # One pass up front so the first screen is not empty, on this thread but
+        # once rather than forever.
+        self._refresh()
+        self._thread = threading.Thread(target=self._loop, daemon=True,
+                                        name="ozzytv-discs")
+        self._thread.start()
+
+    def _loop(self) -> None:
+        while True:
+            time.sleep(self._every)
+            try:
+                self._refresh()
+            except Exception:
+                log.debug("disc scan failed", exc_info=True)
+
+    def _refresh(self) -> None:
+        found = find(self._candidates)
+        with self._lock:
+            self._discs = found
+
+    def snapshot(self) -> list[Disc]:
+        with self._lock:
+            return list(self._discs)
 
 
 def find(candidates=CANDIDATES) -> list[Disc]:

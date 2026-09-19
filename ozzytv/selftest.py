@@ -54,7 +54,7 @@ class _Widget:
             self.calls.append(name)
             return {"winfo_width": 1280, "winfo_height": 720,
                     "winfo_screenwidth": 1280, "winfo_screenheight": 720,
-                    "winfo_id": 4242}.get(name)
+                    "winfo_id": 4242, "winfo_ismapped": 1}.get(name)
         return rec
 
     def tkraise(self, *a):

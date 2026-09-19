@@ -242,6 +242,8 @@ class TkView:
             return
         try:
             self.video.update_idletasks()
+            if not self.video.winfo_ismapped():
+                return                  # not on the screen yet; try again next time
             self.app.player.attach(self.video.winfo_id())
             self._attached = True
         except Exception:
@@ -270,6 +272,13 @@ class TkView:
                         rows=self.app.settings.rows)
         if v.screen == Screen.PLAYING.value:
             _raise(self.video)
+            # Hand VLC the window HERE, not once at startup. At startup the
+            # frame is behind the menus and may not be mapped yet, and libVLC
+            # asked to draw into a window that is not ready answers "video
+            # output creation failed" — after which the decoder stalls and the
+            # stream ends early. On screen that is a black flash and a return to
+            # the menu with nothing said.
+            self._attach_video()
             if not v.paused:
                 self.overlay.place_forget()
                 return

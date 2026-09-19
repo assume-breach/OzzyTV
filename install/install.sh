@@ -99,6 +99,16 @@ apt-get install -y --no-install-recommends \
 # (libdvd-pkg) for licensing reasons. Home-made and unencrypted discs play with
 # what is here; for the rest, run:
 #     sudo apt install libdvd-pkg && sudo dpkg-reconfigure libdvd-pkg
+# ...and the decryptor. Most commercial DVDs are CSS scrambled and will not
+# play without it — they do not fail, they simply never start. Debian ships it
+# as a source package you build yourself for licensing reasons, which is what
+# dpkg-reconfigure does here; it needs the network and a few minutes.
+apt-get install -y libdvd-pkg >/dev/null 2>&1 \
+  && DEBIAN_FRONTEND=noninteractive dpkg-reconfigure -f noninteractive libdvd-pkg \
+  || warn "libdvdcss did not build. Home-made and unencrypted discs will play;
+         commercial ones will not. Try it on its own with:
+             sudo apt install libdvd-pkg && sudo dpkg-reconfigure libdvd-pkg"
+
 apt-get install -y --no-install-recommends libdvdnav4 libdvdread8 \
   || apt-get install -y --no-install-recommends libdvdnav4 libdvdread7 \
   || warn "the DVD libraries did not install; discs will not play."

@@ -30,6 +30,11 @@ from .security import PinGate, WeakPin, check_pin_strength
 # film over does not conclude it did not work.
 LOOK_FOR_NEW_EVERY = 5.0
 
+# How long to wait for something to actually begin before giving up on it. A
+# scrambled DVD does not fail, it simply never starts, and a black rectangle
+# with no way off it is the worst thing this can do.
+STUCK_AFTER = 25.0
+
 log = logging.getLogger(__name__)
 
 
@@ -200,6 +205,9 @@ class OzzyApp:
         self._parent_rows: list[ParentRow] = []
         self._parent_cursor = 0
         self.should_quit = False
+        # One background watcher, not a device read per frame. See discs.Watcher.
+        self.discs = discs.Watcher()
+        self.discs.start()
         self._library_seen: tuple = ()
         self._looked_at = 0.0
         self.rescan()
@@ -362,10 +370,10 @@ class OzzyApp:
         the thing they had yesterday, whose name they cannot read.
         """
         rail: list[RailItem] = []
-        if self._current() is None:
-            # Home, always, at the top — not only when the drive is empty. It is
-            # where the DVD drive lives and the way in to Settings, and a menu
-            # that exists only when there is nothing to watch is not a menu.
+        if self._current() is None and self._home_tiles():
+            # Home, at the top — not only when the drive is empty. It is
+            # where the disc drive lives. It is not shown when there is no
+            # drive plugged in: a shelf with nothing on it is not a menu either.
             rail.append(RailItem(title="Home", rel=HOME_KEY, root_index=-1,
                                  count=len(self._home_tiles()), is_here=True))
         if self._current() is None and self._recent():
@@ -548,14 +556,10 @@ class OzzyApp:
         worse than one that says "no disc" — and there is always a way in to
         the grown-up screen, which is otherwise a keypress nobody can guess.
         """
-        tiles = []
-        for i, d in enumerate(discs.find()):
-            tiles.append(Tile(title=d.title, kind=discs.DVD_KIND,
-                              rel=f"{discs.DVD_REL}:{i}", root_index=-1,
-                              badge="" if d.has_disc else "no disc"))
-        tiles.append(Tile(title="Grown-ups", kind="parent", rel=PARENT_REL,
-                          root_index=-1))
-        return tiles
+        return [Tile(title=d.title, kind=discs.DVD_KIND,
+                     rel=f"{discs.DVD_REL}:{i}", root_index=-1,
+                     badge="" if d.has_disc else "no disc")
+                for i, d in enumerate(self.discs.snapshot())]
 
     def _open_home_tile(self, tile: Tile) -> None:
         if tile.kind == "parent":
@@ -573,7 +577,7 @@ class OzzyApp:
         """
         try:
             i = int(tile.rel.rsplit(":", 1)[1])
-            disc = discs.find()[i]
+            disc = self.discs.snapshot()[i]
         except (ValueError, IndexError):
             self.screen = Screen.MESSAGE
             self.message = "That disc drive has gone.\n\nAsk a grown-up."
@@ -586,6 +590,7 @@ class OzzyApp:
         # slash to one and hands VLC an address that points nowhere, which is a
         # black screen with nothing in the log to explain it.
         self.playback.start(disc.mrl, tile.title)
+        self._playing_since = self._clock()
         self.screen = Screen.PLAYING
 
     # ------------------------------------------------------------- pointing
@@ -692,6 +697,7 @@ class OzzyApp:
             return
         self.store.record_play(node.path, node.title, node.root, node.rel)
         self.playback.start(node.path, node.title)
+        self._playing_since = self._clock()
         self.screen = Screen.PLAYING
 
     # -- kid: watching --
@@ -716,6 +722,25 @@ class OzzyApp:
 
     def tick(self) -> None:
         """Called a few times a second by the drawing layer."""
+        if self.screen is Screen.PLAYING:
+            # A watchdog. libVLC opening something it cannot handle does not
+            # always fail — a scrambled DVD in particular just sits there, and
+            # the television is a black rectangle with no way off it. If nothing
+            # has actually started after a while, say so and go back.
+            now = self._clock()
+            n = self.playback.now
+            started = n is not None and (n.position_ms > 0 or n.duration_ms > 0)
+            if started:
+                self._playing_since = now
+            elif now - getattr(self, "_playing_since", now) > STUCK_AFTER:
+                what = Path(str(n.path)).name if n else ""
+                log.error("nothing started playing for %s after %ss",
+                          what, STUCK_AFTER)
+                self.playback.stop()
+                self.screen = Screen.MESSAGE
+                self.message = (f"This would not start:\n{what}\n\n"
+                                f"Press Back.")
+                return
         if self.screen is not Screen.PLAYING:
             # Not while something is playing: the drive is busy feeding VLC, and
             # a stat storm on an SD card is a stutter in the picture.
@@ -726,8 +751,24 @@ class OzzyApp:
             return
         state = self.playback.tick()
         if state in (PlayState.ENDED, PlayState.ERROR):
+            n = self.playback.now
             failed = state is PlayState.ERROR
-            what = self.playback.now.path if self.playback.now else ""
+            # "Ended" is not the same as "finished". When VLC cannot create a
+            # video output the decoder stalls and the stream ends early, and
+            # that arrives here as an ordinary end — so the television flashed
+            # black and went back to the menu with nothing said. Anything that
+            # stops well short of its own duration did not finish.
+            # HALF, not most of it. VLC's last position sample lags the end of
+            # the stream — a clip that finished normally reports about 89% — so
+            # anything tighter than this calls every completed show a failure.
+            # What this is for is the other shape: a stream that ends after a
+            # second or two because the video output could not be created.
+            if (not failed and n and n.duration_ms > 0
+                    and n.position_ms < n.duration_ms * 0.5):
+                failed = True
+                log.error("%s stopped at %sms of %sms — it did not finish",
+                          n.path, n.position_ms, n.duration_ms)
+            what = n.path if n else ""
             self.playback.stop()
             self.screen = Screen.BROWSE
             if failed:
@@ -736,8 +777,9 @@ class OzzyApp:
                 # instead of at the one place that knows: VLC's own log.
                 log.error("playback failed for %s", what)
                 self.screen = Screen.MESSAGE
-                self.message = (f"This would not play:\n{Path(what).name}\n\n"
-                                f"journalctl -u ozzytv@$USER -n 30")
+                self.message = (f"This would not play:\n{Path(str(what)).name}\n\n"
+                                f"Press Back, then:\n"
+                                f"journalctl -u ozzytv@$USER -n 40")
 
     # -- the keypad --
     def _open_parent(self) -> None:

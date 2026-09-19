@@ -31,8 +31,8 @@ class TestWhatIsOnTheDriveIsWhatIsOnTheScreen:
         a = OzzyApp(settings, store, player, clock=clock)
         v = a.view()
         assert v.screen == Screen.BROWSE.value
-        assert v.rail and v.tiles
-        assert v.heading == "Home"
+        assert v.rail, "no menu at all"
+        assert v.welcome, "and nothing saying what to do"
 
     def test_and_says_where_to_put_films(self, settings, store, player, clock,
                                          tmp_path):
@@ -407,4 +407,4 @@ class TestNothingCrashesTheTelevision:
         app.rescan()
         v = app.view()
         assert v.screen == Screen.BROWSE.value, "the menu vanished with the drive"
-        assert v.rail and v.tiles, "and left nothing on the screen"
+        assert v.rail, "and left nothing on the screen"

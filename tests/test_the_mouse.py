@@ -170,24 +170,19 @@ def empty_tv(settings, store, player, clock, tmp_path):
 
 
 class TestTheFirstBootScreen:
+    def test_the_shelves_are_clickable(self, empty_tv):
+        """Nothing on the drive and no disc drive: still a menu, and still a
+        menu you can press."""
+        v = empty_tv.view()
+        assert v.rail, "no menu at all"
+        sc = skin.build(v, 1280, 720, columns=1, rows=6)
+        targets = {i.hit for i in sc.items if isinstance(i, RoundRect) and i.hit}
+        assert "rail:0" in targets
+        # No Back at the top level — there is nowhere to go back TO. What must
+        # be there is a way to press something without a keyboard.
+        assert "key:select" in targets
+
     """The one screen where a grown-up is certainly the one standing there,
     most likely with a mouse — and until now the one screen with nothing on it
     a pointer could press."""
 
-    def test_its_tiles_are_clickable_like_any_others(self, empty_tv):
-        app = empty_tv
-        app.handle(Action.SELECT)          # rail -> the Home tiles
-        v = app.view()
-        assert v.heading == "Home", "not the Home shelf"
-        assert v.tiles, "a home screen with nothing on it to press"
-        sc = skin.build(v, 1280, 720, columns=3, rows=2)
-        targets = {i.hit for i in sc.items if isinstance(i, RoundRect) and i.hit}
-        for i in range(len(v.tiles)):
-            assert f"tile:{i}" in targets, f"home tile {i} does nothing when clicked"
-
-    def test_and_clicking_grown_ups_opens_the_way_in(self, empty_tv):
-        app = empty_tv
-        v = app.view()
-        i = [n for n, t in enumerate(v.tiles) if t.kind == "parent"][0]
-        app.click(f"tile:{i}")
-        assert app.screen.value in ("pin", "parent")

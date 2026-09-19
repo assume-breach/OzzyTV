@@ -14,6 +14,18 @@ from ozzytv import discs
 from ozzytv.app import Action, OzzyApp, Screen
 
 
+class FakeWatcher:
+    """What the app talks to. The real one probes on its own thread."""
+    def __init__(self, found):
+        self._found = found
+
+    def snapshot(self):
+        return list(self._found)
+
+    def start(self):
+        pass
+
+
 class TestFindingTheDrive:
     def test_no_drive_is_not_an_error(self):
         assert discs.find(candidates=("/dev/definitely-not-here",)) == []
@@ -68,12 +80,10 @@ class TestOnTheHomeScreen:
     def tv(self, settings, store, player, clock, tmp_path, monkeypatch):
         dev = tmp_path / "sr0"
         dev.write_bytes(b"\x00" * 4096)
-        monkeypatch.setattr(discs, "CANDIDATES", (str(dev),))
-        monkeypatch.setattr(discs, "find",
-                            lambda candidates=(str(dev),): [
-                                discs.Disc(str(dev), "DVD", True)])
         settings.media_roots = [str(tmp_path / "empty")]
-        return OzzyApp(settings, store, player, clock=clock)
+        app = OzzyApp(settings, store, player, clock=clock)
+        app.discs = FakeWatcher([discs.Disc(str(dev), "DVD", True)])
+        return app
 
     def test_a_dvd_tile_is_on_the_home_screen(self, tv):
         titles = [t.title for t in tv.view().tiles]
@@ -87,8 +97,7 @@ class TestOnTheHomeScreen:
 
     def test_an_empty_drive_says_so_instead_of_a_black_screen(self, tv, monkeypatch,
                                                               tmp_path):
-        monkeypatch.setattr(discs, "find",
-                            lambda **kw: [discs.Disc(str(tmp_path / "sr0"), "DVD", False)])
+        tv.discs = FakeWatcher([discs.Disc(str(tmp_path / "sr0"), "DVD", False)])
         i = [n for n, t in enumerate(tv.view().tiles) if t.kind == "dvd"][0]
         tv.click(f"tile:{i}")
         assert tv.screen is Screen.MESSAGE
@@ -97,7 +106,7 @@ class TestOnTheHomeScreen:
     def test_a_drive_that_vanishes_does_not_crash_it(self, tv, monkeypatch):
         tiles = tv.view().tiles
         i = [n for n, t in enumerate(tiles) if t.kind == "dvd"][0]
-        monkeypatch.setattr(discs, "find", lambda **kw: [])
+        tv.discs = FakeWatcher([])
         tv.click(f"tile:{i}")                     # must not raise
         # Whatever it does, it must not be a traceback in front of a child. The
         # tile list shrank under it, so index 0 is now something else entirely.
@@ -109,30 +118,33 @@ class TestOnTheHomeScreen:
 class TestTheHomeScreenAlwaysExists:
     """A Roku with nothing installed still shows you a Roku."""
 
-    def test_an_empty_library_still_has_a_home_screen(self, settings, store, player,
-                                                      clock, tmp_path):
+    def test_an_empty_library_still_draws_a_screen(self, settings, store, player,
+                                                   clock, tmp_path):
+        """No drive and no files: still the television, still saying what to
+        do — not a blank."""
         settings.media_roots = [str(tmp_path / "nothing")]
         app = OzzyApp(settings, store, player, clock=clock)
         v = app.view()
         assert v.screen == Screen.BROWSE.value
-        assert v.rail and v.tiles, "no menu at all"
-        assert v.heading == "Home"
+        assert v.rail, "no menu at all"
+        assert v.welcome, "and nothing saying what to do"
 
-    def test_and_a_way_in_for_the_grown_up(self, settings, store, player, clock,
-                                           tmp_path):
+    def test_a_drive_puts_a_home_shelf_on_it(self, settings, store, player, clock,
+                                             tmp_path):
         settings.media_roots = [str(tmp_path / "nothing")]
         app = OzzyApp(settings, store, player, clock=clock)
-        i = [n for n, t in enumerate(app.view().tiles) if t.kind == "parent"][0]
-        app.click(f"tile:{i}")
-        assert app.screen.value in ("pin", "parent")
+        app.discs = FakeWatcher([discs.Disc("/dev/sr0", "DVD", False)])
+        assert any(r.title == "Home" for r in app.view().rail)
 
-    def test_arrow_keys_move_along_the_home_row(self, settings, store, player, clock,
-                                                tmp_path):
+
+    def test_arrow_keys_do_not_run_off_the_end(self, settings, store, player, clock,
+                                               tmp_path):
         settings.media_roots = [str(tmp_path / "nothing")]
         app = OzzyApp(settings, store, player, clock=clock)
-        app.handle(Action.RIGHT)
-        app.handle(Action.LEFT)
-        assert app.view().cursor == 0            # and did not run off the end
+        app.discs = FakeWatcher([discs.Disc("/dev/sr0", "DVD", False)])
+        for a in (Action.DOWN, Action.DOWN, Action.UP, Action.UP, Action.RIGHT):
+            app.handle(a)
+        app.view()                               # must not raise
 
 
 class TestADiscIsNotAFile:
@@ -143,10 +155,9 @@ class TestADiscIsNotAFile:
         nowhere. It has to stay a string the whole way."""
         dev = tmp_path / "sr0"
         dev.write_bytes(b"\x00" * 4096)
-        monkeypatch.setattr(discs, "find",
-                            lambda **kw: [discs.Disc(str(dev), "DVD", True)])
         settings.media_roots = [str(tmp_path / "empty")]
         app = OzzyApp(settings, store, player, clock=clock)
+        app.discs = FakeWatcher([discs.Disc(str(dev), "DVD", True)])
         i = [n for n, t in enumerate(app.view().tiles) if t.kind == "dvd"][0]
         app.click(f"tile:{i}")
         assert str(app.playback.now.path).startswith("dvd://")
@@ -156,10 +167,9 @@ class TestADiscIsNotAFile:
         """The resume store is keyed on a file, and a DVD keeps its own place."""
         dev = tmp_path / "sr0"
         dev.write_bytes(b"\x00" * 4096)
-        monkeypatch.setattr(discs, "find",
-                            lambda **kw: [discs.Disc(str(dev), "DVD", True)])
         settings.media_roots = [str(tmp_path / "empty")]
         app = OzzyApp(settings, store, player, clock=clock)
+        app.discs = FakeWatcher([discs.Disc(str(dev), "DVD", True)])
         i = [n for n, t in enumerate(app.view().tiles) if t.kind == "dvd"][0]
         app.click(f"tile:{i}")
         app.playback.stop()                       # must not try to store a Path
