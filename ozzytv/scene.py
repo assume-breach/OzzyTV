@@ -80,6 +80,21 @@ def Circle(cx: float, cy: float, r: float, **kw) -> Oval:      # noqa: N802
 
 
 @dataclass
+class Picture:
+    """A photograph, clipped to a circle, centered on (cx, cy).
+
+    The only raster in an otherwise entirely vector interface, and it earns its
+    place: a child of two recognizes their own face long before they recognize
+    the word "Bluey". `name` is a file in ozzytv/assets — not a path, so a Scene
+    stays pure data and neither renderer has to be told where things live.
+    """
+    cx: float
+    cy: float
+    r: float
+    name: str
+
+
+@dataclass
 class Gradient:
     """A vertical wash. Tk has no gradients, so both renderers paint it as a
     stack of bands — one place to decide how many, rather than fifty rectangles
@@ -98,7 +113,7 @@ class Gradient:
 # Raspberry Pi OS Bullseye ships Python 3.9, where `A | B` between classes raises
 # TypeError. The whole app would have failed to start on it, with a message about
 # unsupported operand types.
-Item = Union[RoundRect, Text, Poly, Oval, Gradient]
+Item = Union[RoundRect, Text, Poly, Oval, Gradient, Picture]
 
 
 @dataclass

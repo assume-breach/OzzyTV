@@ -9,8 +9,6 @@ Roku-shaped menus — a list of shelves down the left, big tiles across the righ
 one unmistakable selection — painted for a two-year-old: a sky with clouds and
 hills, sweet colors, and an animal on everything.
 
-![The home screen](docs/mockups/01-home.png)
-
 Point it at a folder of films and shows. Your child sees big tiles and
 nothing else — no settings, no way out to a desktop. You decide, per file or per
 folder, what is on those tiles.
@@ -43,10 +41,8 @@ sudo ./install/install.sh
 Then:
 
 ```sh
-sudo -u "$USER" ozzytv --set-pin           # do this first
-cp ~/films/*.mp4 /media/ozzy/              # put something there
+cp -r ~/films/* /media/ozzy/               # put something there
 ozzytv --scan                              # see what it found
-ozzytv --allow /media/ozzy/Bluey           # let that through
 sudo reboot                                # comes up into Ozzy TV
 ```
 
@@ -55,6 +51,20 @@ a console: **Ctrl-Alt-F2**, or ssh in.
 
 `sudo ./install/install.sh --uninstall` puts the console back. It leaves your
 media and your choices alone.
+
+## The sun
+
+![The home screen](docs/mockups/01-home.png)
+
+That is Ozzy, in the sun, in the top corner of every screen. It is the one
+photograph in an interface that is otherwise entirely drawn, and it earns its
+place: a child of two knows their own face long before they know the word
+"Bluey".
+
+Swap it for your own by replacing `ozzytv/assets/sun-face.png` — a square PNG,
+around 384 pixels, already cropped to a circle with a transparent corner. The
+yellow disc is drawn underneath, so if the file is missing or PIL is not
+installed the sun is still a sun.
 
 ## The animals
 
@@ -89,29 +99,28 @@ child looks for a way out, and there is not one.
 
 ![Choosing](docs/mockups/02-choosing.png)
 
-**You** press **P** and enter the PIN. That gets you a list of everything on the
-drive — including what your child cannot see — with what each row is doing and
-why. OK cycles a row through allowed → blocked → inherits-from-its-folder. The
-first press always changes what your child sees.
+**You** press **P**. There is no PIN. That gets you a list of everything on the
+drive with what each row is doing, and OK hides or shows a row. You only need it
+if there is something you would rather your child did not find — everything on
+the drive shows up on its own.
 
-You can do the same from a terminal, which is easier before the Pi is plugged
-into a TV at all:
+You can do the same from a terminal:
 
 ```sh
-ozzytv --scan                                    # the whole library, with its rules
-ozzytv --allow "/media/ozzy/PAW Patrol"          # a folder, and anything added to it later
-ozzytv --block "/media/ozzy/PAW Patrol/S03E12.mp4"   # except this one
-ozzytv --forget "/media/ozzy/Films"              # back to inheriting
+ozzytv --scan                                        # the whole library, with its rules
+ozzytv --block "/media/ozzy/Films/Alien (1979).mp4"  # hide one thing
+ozzytv --block "/media/ozzy/Films"                   # or a whole folder
+ozzytv --forget "/media/ozzy/Films"                  # show it again
 ```
 
 ### Hiding something
 
-Mark a file or a folder. A folder's mark covers everything inside it, and the
-**nearest** mark wins — so "allow Bluey, block Bluey/S02E14" reads the way it
-looks. Anything with no mark above it is hidden.
+**Everything on the drive shows unless you hide it.** You already decided when
+you copied the file on.
 
-Allowing a folder is a **standing yes**: things added to it later are visible
-too. That is normally what you mean, and the parent screen says so on the row.
+Blocking a folder covers everything inside it, including whatever is added to it
+later, and the **nearest** mark wins — so "block Films, show Films/Paddington"
+reads the way it looks.
 
 ## What runs where
 
@@ -354,7 +363,7 @@ stop a child's television from working.
 | `columns`, `rows` | tiles per screen. 3×2 suits a 1080p TV from a sofa |
 | `resume` | pick up where they left off |
 | `volume_min`, `volume_max` | how quiet and how loud a child may make it |
-| `parent_keys` | which keys open the PIN pad |
+| `parent_keys` | which keys open the grown-ups screen |
 | `cec` | drive it from the TV's remote (needs `cec-utils`) |
 | `vlc_args` | extra libVLC arguments. See above before touching |
 

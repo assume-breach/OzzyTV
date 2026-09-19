@@ -21,7 +21,7 @@ from ozzytv.app import Action, ParentRow, RailItem, Tile, View
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 
-ITEM_TYPES = (S.RoundRect, S.Text, S.Poly, S.Oval, S.Gradient)
+ITEM_TYPES = (S.RoundRect, S.Text, S.Poly, S.Oval, S.Gradient, S.Picture)
 
 
 def import_tkview():
@@ -72,6 +72,16 @@ class TestBothRenderersHandleEverythingTheSkinEmits:
             seen |= {type(i) for i in sc.items}
         assert seen, "no screen produced any items at all"
         assert seen <= set(ITEM_TYPES), f"unknown item type(s): {seen - set(ITEM_TYPES)}"
+
+    def test_a_picture_that_is_missing_does_not_break_a_screen(self):
+        """The only raster in the whole interface. Both renderers have to cope
+        with the file not being there — a sun with no face is still a sun, and a
+        screen that will not draw is not."""
+        import mockup
+        from ozzytv.scene import Picture, Scene
+        sc = Scene(w=1280, h=720, bg="#000000")
+        sc.add(Picture(100, 100, 40, "definitely-not-here.png"))
+        mockup.render(sc)                       # must not raise
 
     def test_the_mockup_draws_every_item_type(self):
         """PIL is here, so this one runs for real rather than by inspection."""

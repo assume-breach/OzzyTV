@@ -23,7 +23,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 
-from .scene import (BODY, GLYPH, H1, H2, LOGO, SMALL, TILE, Circle, Gradient,
+from .scene import (BODY, Picture, GLYPH, H1, H2, LOGO, SMALL, TILE, Circle, Gradient,
                     Oval, Poly, RoundRect, Scene, Text)
 
 # ---------------------------------------------------------------- the palette
@@ -47,6 +47,8 @@ PILL_ON_INK = "#2a1d6b"
 # picture next to shapes that grew with the screen.
 HAIRLINE = 2 / 720
 RULE = 3 / 720
+
+SUN_FACE = "sun-face.png"      # the face in the sun, in ozzytv/assets
 
 TILE_BG = "#2d2276"
 FOCUS = "#ffffff"
@@ -316,7 +318,10 @@ def backdrop(sc: Scene, w: int, h: int) -> None:
     # Sun, tucked into the very top corner: further in it sat behind the top row
     # of tiles, which is where the eye needs to go.
     sun_x, sun_y, sun_r = w * 0.930, h * 0.105, h * 0.042
+    # The disc stays underneath, so the sun is still a sun if the photograph is
+    # missing or this Python has no PIL to scale it with.
     sc.add(Circle(sun_x, sun_y, sun_r, fill=SUN))
+    sc.add(Picture(sun_x, sun_y, sun_r * 0.88, SUN_FACE))
     for i in range(12):
         import math
         a = i * math.pi / 6

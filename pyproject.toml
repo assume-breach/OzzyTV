@@ -24,6 +24,11 @@ ozzytv = "ozzytv.__main__:main"
 [tool.setuptools]
 packages = ["ozzytv"]
 
+# The face in the sun. install.sh copies the tree wholesale, but a pip install
+# would otherwise leave the package without its one picture.
+[tool.setuptools.package-data]
+ozzytv = ["assets/*.png"]
+
 [project.urls]
 Homepage = "https://github.com/assume-breach/OzzyTV"
 Source = "https://github.com/assume-breach/OzzyTV"

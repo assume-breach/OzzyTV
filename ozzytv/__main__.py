@@ -4,7 +4,6 @@
     ozzytv --windowed           same, in a window, for setting up over VNC/SSH -X
     ozzytv --fake-player        no VLC at all: navigate the menus on a laptop
     ozzytv --scan               print what the library looks like, and stop
-    ozzytv --set-pin            set the parent PIN from a terminal
     ozzytv --doctor             why it is not on the screen, and what to type
     ozzytv --selftest           draw every screen headless; what a Pi cannot show
 """
@@ -33,7 +32,8 @@ def main(argv: list[str] | None = None) -> int:
                     help="print the library as the app sees it, then exit")
     ap.add_argument("--check", action="store_true",
                     help="with --scan, also say what this hardware can play")
-    ap.add_argument("--set-pin", action="store_true", help="set the parent PIN")
+    ap.add_argument("--show-everything", action="store_true",
+                    help="clear every hide/show mark: back to what is on the drive")
     ap.add_argument("--doctor", action="store_true",
                     help="say why it is not on the screen, and what to type")
     ap.add_argument("--selftest", action="store_true",
@@ -74,8 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.doctor:
             from . import doctor
             return doctor.report(doctor.run(settings, store))
-        if args.set_pin:
-            return _set_pin(store)
+        if args.show_everything:
+            return _show_everything(settings, store)
         if args.allow or args.block or args.forget:
             rc = _mark(settings, store, args)
             if rc or not args.scan:
@@ -85,6 +85,23 @@ def main(argv: list[str] | None = None) -> int:
         return _run(settings, store, args)
     finally:
         store.close()
+
+
+def _show_everything(settings, store) -> int:
+    """Forget every mark.
+
+    Ozzy TV used to hide everything until a grown-up allowed it, one thing at a
+    time, so a library set up under that rule is carrying marks that now do the
+    opposite of what anybody wants. This is the one command that undoes the lot.
+    """
+    n = 0
+    for root in settings.roots:
+        n += len(store.rules_for(root).marks)
+        store.clear_marks(root)
+    print(f"Cleared {n} hide/show mark(s).")
+    print("Everything on the drive is visible. Hide something with:")
+    print('    ozzytv --block "/media/ozzy/<what>"')
+    return 0
 
 
 def _set_pin(store: Store) -> int:

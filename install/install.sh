@@ -90,7 +90,8 @@ say "installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq || warn "apt-get update failed — carrying on with what is cached"
 apt-get install -y --no-install-recommends \
-    vlc python3-vlc python3-tk xserver-xorg xinit x11-xserver-utils x11-utils unclutter \
+    vlc python3-vlc python3-tk python3-pil python3-pil.imagetk \
+    xserver-xorg xinit x11-xserver-utils x11-utils unclutter \
     fonts-dejavu-core \
   || die "could not install the packages Ozzy TV needs. Fix the errors above and re-run."
 # DVDs. libdvdnav/libdvdread are what VLC uses to read the disc structure and

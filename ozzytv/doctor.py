@@ -246,11 +246,28 @@ def check_sound() -> Check:
                  "sudo raspi-config nonint do_audio 2   (or re-run install.sh)")
 
 
+def check_pictures() -> Check:
+    """The face in the sun. Decoration, so never a failure — but "why is my
+    son not on the screen" deserves an answer better than silence."""
+    from . import skin
+    face = Path(__file__).resolve().parent / "assets" / skin.SUN_FACE
+    if not face.is_file():
+        return Check("the face in the sun", WARN, "the picture is not installed",
+                     "sudo ./install/install.sh")
+    try:
+        import PIL.ImageTk                                    # noqa: F401,PLC0415
+    except Exception as e:
+        return Check("the face in the sun", WARN,
+                     f"PIL cannot scale it here ({type(e).__name__})",
+                     "sudo apt install python3-pil python3-pil.imagetk")
+    return Check("the face in the sun", OK, str(face.name))
+
+
 def run(settings, store) -> list[Check]:
     return [check_build(), check_package(), check_tk(), check_vlc(),
             check_drawing(), check_display(),
             check_media(settings), check_allowed(settings, store),
-            check_share(), check_discs(), check_sound(),
+            check_share(), check_discs(), check_sound(), check_pictures(),
             check_pin(store), check_service()]
 
 

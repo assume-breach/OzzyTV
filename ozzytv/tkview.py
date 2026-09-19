@@ -16,12 +16,15 @@ from __future__ import annotations
 import logging
 import tkinter as tk
 import tkinter.font as tkfont
+from pathlib import Path
 
 from . import scene as S
 from . import skin
 from .app import Action, OzzyApp, Screen
 
 log = logging.getLogger(__name__)
+
+ASSETS = Path(__file__).resolve().parent / "assets"
 
 TICK_MS = 250          # four times a second: smooth enough for a progress bar,
                        # idle enough to leave the CPU for decoding
@@ -108,6 +111,7 @@ class TkView:
             self._cursor("none")
 
         self._fonts: dict[tuple, tkfont.Font] = {}
+        self._images: dict[tuple, object] = {}
         self._attached = False
         self._last_screen = ""
         self.root.bind("<Key>", self._on_key)
@@ -317,6 +321,37 @@ class TkView:
         _raise(self.canvas)
         self._paint(self.canvas, sc)
 
+    def _picture(self, c: tk.Canvas, pic: S.Picture, dy: float) -> None:
+        """A photograph, clipped to a circle.
+
+        Tk can load a PNG but can only scale one by whole-number ratios, which
+        for a sun whose size follows the screen height means a face made of
+        visible squares. PIL does the resizing — python3-pil is a stock
+        Raspberry Pi OS package — and if it is not there the plain yellow disc
+        underneath is still a perfectly good sun.
+
+        The PhotoImage is kept in self._images because Tk does not: an image
+        nothing holds a reference to is collected, and the picture silently
+        never appears.
+        """
+        d = max(2, int(pic.r * 2))
+        key = (pic.name, d)
+        if key not in self._images:
+            try:
+                from PIL import Image, ImageTk       # noqa: PLC0415
+                path = ASSETS / pic.name
+                if not path.is_file():
+                    self._images[key] = None
+                else:
+                    im = Image.open(path).convert("RGBA").resize((d, d), Image.LANCZOS)
+                    self._images[key] = ImageTk.PhotoImage(im)
+            except Exception:
+                log.debug("could not prepare %s", pic.name, exc_info=True)
+                self._images[key] = None
+        photo = self._images[key]
+        if photo is not None:
+            c.create_image(pic.cx, pic.cy + dy, image=photo)
+
     def _font(self, role: str, h: int, size: float = 0) -> tkfont.Font:
         family, weight, frac = FONTS.get(role, FONTS[S.BODY])
         px = int(size) if size else int(h * frac)
@@ -364,6 +399,8 @@ class TkView:
             else:
                 c.create_polygon([v for p in pts for v in p], fill=item.fill or "",
                                  outline=item.outline or "", width=item.width)
+        elif isinstance(item, S.Picture):
+            self._picture(c, item, dy)
         elif isinstance(item, S.Text):
             c.create_text(item.x, item.y + dy, text=item.text,
                           font=self._font(item.font, h, item.size), fill=item.fill,

@@ -94,6 +94,8 @@ def render(sc: S.Scene) -> Image.Image:
                        width=max(1, int((item.width or 1) * SS)), joint="curve")
             else:
                 d.polygon(pts, fill=item.fill, outline=item.outline)
+        elif isinstance(item, S.Picture):
+            _picture(img, item, SS)
         elif isinstance(item, S.Text):
             f = _font(item.font, h, item.size)
             text = _wrap(d, item.text, f, item.wrap * SS, item.max_lines)
@@ -102,6 +104,16 @@ def render(sc: S.Scene) -> Image.Image:
                              align="center" if item.anchor in ("n", "center", "s") else "left",
                              spacing=int(h * 0.006))
     return img.resize((sc.w, sc.h), Image.LANCZOS)
+
+
+def _picture(img: Image.Image, pic: S.Picture, ss: int) -> None:
+    """Paste a photograph, clipped to a circle."""
+    path = Path(__file__).resolve().parents[1] / "ozzytv" / "assets" / pic.name
+    if not path.is_file():
+        return                      # the plain disc underneath is still a sun
+    d = max(2, int(pic.r * 2 * ss))
+    face = Image.open(path).convert("RGBA").resize((d, d), Image.LANCZOS)
+    img.paste(face, (int((pic.cx - pic.r) * ss), int((pic.cy - pic.r) * ss)), face)
 
 
 def _gradient(d, g: S.Gradient) -> None:
