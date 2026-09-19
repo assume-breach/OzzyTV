@@ -48,9 +48,20 @@ if command -v xrandr >/dev/null 2>&1; then
         # --auto takes the mode the display says it prefers, which is its native
         # one on anything modern.
         xrandr --output "$OUTPUT" --auto 2>/dev/null || true
+        # Shrink the VIRTUAL screen to the mode as well. --auto sets the mode but
+        # leaves the framebuffer at whatever it was, so X can report a screen
+        # twice the size of the picture — and everything drawn as a fraction of
+        # that comes out at double scale with half of it off the edge.
+        MODE="$(xrandr | awk '/\*/{print $1; exit}')"
+        [ -n "${MODE:-}" ] && xrandr --fb "$MODE" 2>/dev/null || true
         echo "screen: $(xrandr | awk '/\*/{print $1; exit}') on $OUTPUT"
     fi
 fi
+
+# Give the ROOT window a proper arrow too. Nothing else will: that is a
+# desktop's job, and there is no desktop. Left alone it stays X_cursor, the big
+# black X, which is what shows any time the pointer is not over the app.
+command -v xsetroot >/dev/null 2>&1 && xsetroot -cursor_name left_ptr 2>/dev/null
 
 # Screen blanking off: a show is not idle because nobody has touched a key
 # for ten minutes.

@@ -108,7 +108,12 @@ class TestThePointerItself:
         tkview._on_motion(types.SimpleNamespace(x=10, y=10))
         cursors = [kw.get("cursor") for n, a, kw in tkview.root.calls
                    if n == "config" and "cursor" in kw]
-        assert "" in cursors, "the pointer never reappears"
+        assert any(c and c != "none" for c in cursors), "the pointer never reappears"
+        # NOT "" — that means "this window has no cursor of its own", so X walks
+        # up to the root window, and with no desktop that is X_cursor: a big
+        # black X. It has to be an actual named shape.
+        assert "" not in cursors, 'cursor="" inherits the root X'
+
 
     def test_a_click_outside_everything_does_nothing(self, tkview):
         import types
@@ -171,8 +176,9 @@ class TestTheFirstBootScreen:
 
     def test_its_tiles_are_clickable_like_any_others(self, empty_tv):
         app = empty_tv
+        app.handle(Action.SELECT)          # rail -> the Home tiles
         v = app.view()
-        assert v.welcome, "not the first-boot screen"
+        assert v.heading == "Home", "not the Home shelf"
         assert v.tiles, "a home screen with nothing on it to press"
         sc = skin.build(v, 1280, 720, columns=3, rows=2)
         targets = {i.hit for i in sc.items if isinstance(i, RoundRect) and i.hit}

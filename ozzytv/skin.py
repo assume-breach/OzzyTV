@@ -386,7 +386,7 @@ def _hints(sc: Scene, w: int, h: int, pairs: list[tuple[str, str]]) -> None:
 
 
 def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
-    rail_w = w * 0.285
+    rail_w = w * 0.30
     # ---- the rail
     sc.add(RoundRect(-h * 0.04, -h * 0.04, rail_w + h * 0.04, h + h * 0.08,
                      r=h * 0.05, fill=PANEL))
@@ -413,7 +413,7 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
         creature(sc, b.creature, cx, y + row_h / 2, row_h * 0.30, b.color)
         sc.add(Text(cx + row_h * 0.52, y + row_h / 2, item.title, font=H2,
                     fill=PILL_ON_INK if on else INK, anchor="w",
-                    wrap=rail_w - row_h - w * 0.07, max_lines=1))
+                    wrap=rail_w - row_h - w * 0.09, max_lines=2))
         if item.count:
             sc.add(Text(rail_w - w * 0.052, y + row_h / 2, str(item.count), font=SMALL,
                         fill=PILL_ON_INK if on else INK_DIM, anchor="e"))
@@ -434,13 +434,13 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
 
     if not v.tiles and v.welcome:
         _welcome(sc, v, mx, mw, w, h)
-        _hints(sc, w, h, [("P", "grown-ups"), ("OK", "choose")])
+        _hints(sc, w, h, [("OK", "Open"), ("P", "Settings")])
         return
 
     if not v.tiles:
         sc.add(Text(mx + mw / 2, h * 0.45, "Nothing on this shelf yet", font=H2,
                     fill=INK_DIM, anchor="center"))
-        _hints(sc, w, h, [("OK", "choose"), ("Back", "out")])
+        _hints(sc, w, h, [("OK", "Open"), ("Back", "Go back")])
         return
 
     # A LIST, not a grid of tiles. Big artwork is the right shape for six
@@ -492,7 +492,7 @@ def _browse(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
             cxp = mx + mw / 2 + (p - (pages - 1) / 2) * h * 0.030
             sc.add(Circle(cxp, h * 0.905, h * 0.0075,
                           fill=SUN if p == page else PANEL_EDGE))
-    _hints(sc, w, h, [("OK", "watch"), ("Back", "out"), ("P", "grown-ups")])
+    _hints(sc, w, h, [("OK", "Play"), ("Back", "Go back"), ("P", "Settings")])
 
 
 def _playing(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
@@ -517,7 +517,7 @@ def _playing(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
            RoundRect(bx, by, max(h * 0.020, bw2 * frac), h * 0.020, r=h * 0.010, fill=SUN),
            Circle(bx + bw2 * frac, by + h * 0.010, h * 0.019, fill=FOCUS))
     sc.add(Text(w / 2, y + bar_h * 0.68, "Paused", font=BODY, fill=INK_DIM, anchor="center"))
-    _hints(sc, w, h, [("OK", "carry on"), ("Back", "stop"), ("+ -", "louder")])
+    _hints(sc, w, h, [("OK", "Resume"), ("Back", "Stop"), ("+ -", "Volume")])
 
 
 def _welcome(sc: Scene, v, mx: float, mw: float, w: int, h: int) -> None:
@@ -599,7 +599,7 @@ def _parent(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
                     fill="#6fe3a0" if row.effective else "#ff9ecd", anchor="w"),
                Text(w - w * 0.055, y + row_h * 0.30, row.note, font=SMALL,
                     fill=INK_DIM, anchor="e", wrap=w * 0.26, max_lines=1))
-    _hints(sc, w, h, [("OK", "allow / block"), ("P", "set PIN"), ("Back", "done")])
+    _hints(sc, w, h, [("OK", "Show / hide"), ("Back", "Done")])
 
 
 def _message(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
@@ -611,7 +611,7 @@ def _message(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     creature(sc, "dog", x + cw * 0.70, y + ch * 0.31, h * 0.062, "#ffd449")
     sc.add(Text(x + cw / 2, y + ch * 0.68, v.message, font=H2, fill=INK,
                 anchor="center", wrap=cw * 0.82, max_lines=5))
-    _hints(sc, w, h, [("P", "grown-ups")])
+    _hints(sc, w, h, [("P", "Settings")])
 
 
 def _clock(ms: int) -> str:

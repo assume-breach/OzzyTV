@@ -26,6 +26,11 @@ log = logging.getLogger(__name__)
 TICK_MS = 250          # four times a second: smooth enough for a progress bar,
                        # idle enough to leave the CPU for decoding
 POINTER_IDLE_MS = 3000 # how long the mouse pointer stays visible after it stops
+# An ACTUAL arrow. cursor="" does not mean "the normal pointer" — it means "this
+# window has no cursor of its own", so X walks up to the root window and uses
+# whatever is there. With no desktop and no window manager, nothing ever set
+# that, and the root's default is X_cursor: the big black X.
+ARROW = "left_ptr"
 
 # Font role -> (family, weight, size as a fraction of the screen height). Kept
 # beside tools/mockup.py's copy of the same table; if they drift, a mockup stops
@@ -73,6 +78,9 @@ class TkView:
             # exactly like a crash. An explicit geometry needs no WM.
             self.root.geometry(
                 f"{self.root.winfo_screenwidth()}x{self.root.winfo_screenheight()}+0+0")
+            # ...and then believe the WINDOW, not the screen, when drawing. See
+            # _screen_size: winfo_screenwidth() is the X VIRTUAL screen, which
+            # is not the monitor.
             # The pointer is hidden further down, once the widgets it has to be
             # set on actually exist.
             self._hide_the_pointer = True
@@ -110,6 +118,8 @@ class TkView:
         self.root.bind("<Motion>", self._on_motion)
         self._hide_pointer_after = None
         self._hits: list[tuple[float, float, float, float, str]] = []
+        self._last_size = (0, 0)
+        self.canvas.bind("<Configure>", self._on_resize)
         self.root.protocol("WM_DELETE_WINDOW", lambda: None)   # no way out but the PIN
 
     # ------------------------------------------------------------------ input
@@ -121,13 +131,38 @@ class TkView:
         the mouse and let go of it.
         """
         try:
-            self._cursor("")
+            self._cursor(ARROW)
             if self._hide_pointer_after is not None:
                 self.root.after_cancel(self._hide_pointer_after)
             self._hide_pointer_after = self.root.after(
                 POINTER_IDLE_MS, lambda: self._cursor("none"))
         except Exception:
             log.debug("could not show the pointer", exc_info=True)
+
+    def _screen_size(self) -> tuple[int, int]:
+        """How big the picture really is.
+
+        The CANVAS, measured — that is the thing being drawn on. Not
+        winfo_screenwidth(), which is the X virtual screen: leave a framebuffer
+        bigger than the mode behind (xrandr will) and it reports double the real
+        width. Everything here is sized as a fraction of that number, so the
+        whole layout comes out at twice scale with the right-hand half off the
+        edge of the picture.
+
+        Before the window is mapped Tk reports 1, not 0, so the old `or 1280`
+        never fired and the first paint was laid out inside a single pixel.
+        """
+        w, h = self.canvas.winfo_width(), self.canvas.winfo_height()
+        if w < 320 or h < 240:
+            return 1280, 720
+        return w, h
+
+    def _on_resize(self, event) -> None:
+        """Re-lay-out when the real size turns out not to be what was asked for,
+        which with no window manager is the normal case."""
+        if (event.width, event.height) != self._last_size:
+            self._last_size = (event.width, event.height)
+            self.render()
 
     def _cursor(self, shape: str) -> None:
         """Set the pointer on EVERY widget, not just the toplevel.
@@ -230,8 +265,7 @@ class TkView:
     # ----------------------------------------------------------------- render
     def render(self) -> None:
         v = self.app.view()
-        w = self.canvas.winfo_width() or 1280
-        h = self.canvas.winfo_height() or 720
+        w, h = self._screen_size()
         sc = skin.build(v, w, h, columns=self.app.settings.columns,
                         rows=self.app.settings.rows)
         if v.screen == Screen.PLAYING.value:

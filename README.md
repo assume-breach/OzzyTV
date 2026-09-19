@@ -2,7 +2,8 @@
 
 ![Ozzy TV](docs/mockups/logo.png)
 
-A television app for a toddler, on a Raspberry Pi 3.
+A television for a small child, on a Raspberry Pi 3, with VLC doing the playing
+and a grown-up holding the keys.
 
 Roku-shaped menus — a list of shelves down the left, big tiles across the right,
 one unmistakable selection — painted for a two-year-old: a sky with clouds and

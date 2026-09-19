@@ -362,6 +362,12 @@ class OzzyApp:
         the thing they had yesterday, whose name they cannot read.
         """
         rail: list[RailItem] = []
+        if self._current() is None:
+            # Home, always, at the top — not only when the drive is empty. It is
+            # where the DVD drive lives and the way in to Settings, and a menu
+            # that exists only when there is nothing to watch is not a menu.
+            rail.append(RailItem(title="Home", rel=HOME_KEY, root_index=-1,
+                                 count=len(self._home_tiles()), is_here=True))
         if self._current() is None and self._recent():
             rail.append(RailItem(title="Watch again", rel=RECENT_KEY, root_index=-1,
                                  count=len(self._recent()), is_here=True))
@@ -404,6 +410,8 @@ class OzzyApp:
         if not rail:
             return []
         sel = rail[min(self.rail_cursor, len(rail) - 1)]
+        if sel.rel == HOME_KEY:
+            return []                      # not library nodes; see view()
         if sel.rel == RECENT_KEY:
             return self._recent()
         if sel.rel == LOOSE_KEY:
@@ -448,6 +456,12 @@ class OzzyApp:
         if not rail:
             self._home_key(action)
             return
+        if rail[min(self.rail_cursor, len(rail) - 1)].rel == HOME_KEY \
+                and self.focus is Pane.GRID:
+            self._home_key(action)
+            if action is Action.BACK or (action is Action.LEFT):
+                self.focus = Pane.RAIL
+            return
         grid = self._grid()
         # One column: the shows are a LIST now, so Up and Down walk it one
         # at a time and Left is the way back to the shelves. The grid arithmetic
@@ -463,7 +477,8 @@ class OzzyApp:
             if action in (Action.UP, Action.DOWN) and rail:
                 self._rail_rel = rail[self.rail_cursor].rel
             elif action in (Action.RIGHT, Action.SELECT):
-                if grid:
+                on_home = rail[self.rail_cursor].rel == HOME_KEY
+                if grid or (on_home and self._home_tiles()):
                     self.focus = Pane.GRID
                     self.cursor = 0
             elif action is Action.BACK:
@@ -496,6 +511,13 @@ class OzzyApp:
             self._open(grid)
         elif action is Action.BACK:
             self.focus = Pane.RAIL
+
+    def _on_home(self) -> bool:
+        """Is the shelf under the cursor the Home shelf?"""
+        return self._rail_rel == HOME_KEY or (
+            self._current() is None and not self._rail_rel
+            and (self._rail()[self.rail_cursor].rel == HOME_KEY
+                 if self._rail() else False))
 
     def _home_key(self, action: Action) -> None:
         """The home screen with an empty library.
@@ -599,7 +621,8 @@ class OzzyApp:
                 self.cursor = 0
         elif kind == "tile":
             grid = self._grid()
-            if not self._rail():
+            r = self._rail()
+            if not r or r[min(self.rail_cursor, len(r) - 1)].rel == HOME_KEY:
                 tiles = self._home_tiles()
                 if 0 <= i < len(tiles):
                     self.cursor = i
@@ -631,6 +654,12 @@ class OzzyApp:
                     self.rail_cursor = i
                     return rail
         self.rail_cursor = min(self.rail_cursor, len(rail) - 1)
+        # Home is the first shelf, but it is not where you start. A child wants
+        # the thing they watched yesterday, not a disc drive — Home is one press
+        # UP from wherever they land, which is where a grown-up will look for it.
+        if (not self._rail_rel and len(rail) > 1
+                and rail[self.rail_cursor].rel == HOME_KEY):
+            self.rail_cursor = 1
         self._rail_rel = rail[self.rail_cursor].rel
         return rail
 
@@ -698,12 +727,17 @@ class OzzyApp:
         state = self.playback.tick()
         if state in (PlayState.ENDED, PlayState.ERROR):
             failed = state is PlayState.ERROR
+            what = self.playback.now.path if self.playback.now else ""
             self.playback.stop()
             self.screen = Screen.BROWSE
             if failed:
+                # Say WHICH file, and say where the reason is. "That one would
+                # not play" sent whoever had to fix it looking at the television
+                # instead of at the one place that knows: VLC's own log.
+                log.error("playback failed for %s", what)
                 self.screen = Screen.MESSAGE
-                self.message = ("That one would not play.\n\n"
-                                "Ask a grown-up to check it.")
+                self.message = (f"This would not play:\n{Path(what).name}\n\n"
+                                f"journalctl -u ozzytv@$USER -n 30")
 
     # -- the keypad --
     def _open_parent(self) -> None:
@@ -906,6 +940,14 @@ class OzzyApp:
                         cursor=min(self.cursor, max(0, len(self._home_tiles()) - 1)),
                         message=NOTHING_ALLOWED if any_media else NO_MEDIA,
                         welcome=welcome_steps(self.settings, allowed=any_media))
+        on_home = rail[min(self.rail_cursor, len(rail) - 1)].rel == HOME_KEY
+        if on_home:
+            home = self._home_tiles()
+            return View(screen=Screen.BROWSE.value, heading="Home",
+                        subheading="Ozzy TV", rail=rail,
+                        rail_cursor=self.rail_cursor, focus=self.focus.value,
+                        tiles=home, cursor=min(self.cursor, max(0, len(home) - 1)),
+                        can_go_back=bool(self._stack))
         items = self._grid()
         tiles = []
         for ri, n in items:

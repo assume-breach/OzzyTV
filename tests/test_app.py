@@ -39,7 +39,9 @@ class TestWhatIsOnTheDriveIsWhatIsOnTheScreen:
         a = OzzyApp(settings, store, player, clock=clock)
         settings.media_roots = [str(tmp_path / "nothing")]
         a = OzzyApp(settings, store, player, clock=clock)
-        joined = " ".join(t + " " + b for t, b in a.view().welcome).lower()
+        from ozzytv.app import welcome_steps
+        joined = " ".join(t + " " + b
+                          for t, b in welcome_steps(a.settings, allowed=False)).lower()
         assert any(str(r).lower() in joined for r in a.settings.roots)
 
     def test_blocking_one_folder_hides_only_that(self, app, store):
@@ -405,4 +407,4 @@ class TestNothingCrashesTheTelevision:
         app.rescan()
         v = app.view()
         assert v.screen == Screen.BROWSE.value, "the menu vanished with the drive"
-        assert v.welcome, "and left nothing saying what to do about it"
+        assert v.rail and v.tiles, "and left nothing on the screen"

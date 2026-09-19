@@ -100,7 +100,12 @@ class VlcPlayer:
         if "://" in text:
             media = self._instance.media_new(text)
         else:
+            if not Path(text).exists():
+                # The commonest cause of "nothing happens", and the one libVLC
+                # reports by simply never leaving the opening state.
+                log.error("cannot play %s: no such file", text)
             media = self._instance.media_new_path(text)
+        log.info("opening %s", text)
         self._mp.set_media(media)
         self._duration_hint = 0
         self._mp.play()
