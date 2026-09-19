@@ -182,6 +182,44 @@ env -u PYTHONPATH python3 -m ozzytv --selftest \
          what a black screen on the television looks like from here. Nothing
          has been enabled at boot; fix this first."
 
+# ---- sound out of the TV, not the headphone socket ------------------------
+# A Pi wired to a television and defaulting to the 3.5mm jack is silent, and the
+# first guess is always that the film is broken. Belt and braces, because which
+# of these exists depends on the image: raspi-config on Raspberry Pi OS, the
+# PipeWire default on Trixie, and an ALSA default underneath both.
+say "sending sound to HDMI"
+if command -v raspi-config >/dev/null 2>&1; then
+  # 0 = auto, 1 = headphones, 2 = HDMI.
+  raspi-config nonint do_audio 2 >/dev/null 2>&1 \
+    && say "  raspi-config: audio set to HDMI" \
+    || warn "raspi-config would not set the audio output; carrying on."
+fi
+HDMI_CARD="$(aplay -l 2>/dev/null | sed -n 's/^card \([0-9]\+\): \([^ ,]*\).*[Hh][Dd][Mm][Ii].*/\1 \2/p' | head -1)"
+if [ -n "$HDMI_CARD" ]; then
+  _num="${HDMI_CARD%% *}"
+  _name="${HDMI_CARD#* }"
+  say "  found HDMI audio on card $_num ($_name)"
+  cat > /etc/asound.conf <<ASOUND
+# Written by Ozzy TV's installer. Delete this file to go back to the default.
+defaults.pcm.card $_num
+defaults.ctl.card $_num
+ASOUND
+  # PipeWire and PulseAudio ignore /etc/asound.conf and keep their own idea of
+  # the default, so set that too, as the user who will be playing the films.
+  if command -v wpctl >/dev/null 2>&1; then
+    _sink="$(sudo -u "$OWNER" XDG_RUNTIME_DIR="/run/user/$(id -u "$OWNER")" \
+             wpctl status 2>/dev/null | grep -i hdmi | head -1 \
+             | sed -n 's/.*\([0-9][0-9]*\)\..*/\1/p')"
+    [ -n "${_sink:-}" ] && sudo -u "$OWNER" \
+      XDG_RUNTIME_DIR="/run/user/$(id -u "$OWNER")" \
+      wpctl set-default "$_sink" 2>/dev/null \
+      && say "  PipeWire default set to HDMI"
+  fi
+else
+  warn "no HDMI audio device found. If the television is silent, check the Pi is
+         actually plugged into it by HDMI and see: aplay -l"
+fi
+
 # ---- somewhere to put the films ------------------------------------------
 if [ ! -d "$MEDIA_DEFAULT" ]; then
   say "creating $MEDIA_DEFAULT"

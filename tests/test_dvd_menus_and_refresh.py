@@ -36,7 +36,37 @@ def disc_tv(settings, store, player, clock, tmp_path):
     i = [n for n, t in enumerate(app.view().tiles) if t.kind == "dvd"][0]
     app.click(f"tile:{i}")
     assert app.screen is Screen.PLAYING
+    app.player.menu = True          # the disc's own menu is up
     return app
+
+
+class TestOnceTheFilmStartsTheControlsAreOurs:
+    """Routing everything to the disc is how playback ended up with no controls
+    at all: past the menu, Up seeked nowhere and OK did nothing."""
+
+    def test_ok_pauses_the_film(self, disc_tv):
+        disc_tv.player.menu = False
+        disc_tv.handle(Action.SELECT)
+        assert disc_tv.player.state().value == "paused"
+        assert disc_tv.player.navigated == [], "it sent OK to a disc that is playing"
+
+    def test_the_arrows_seek(self, disc_tv):
+        disc_tv.player.menu = False
+        disc_tv.playback.now.duration_ms = 600_000
+        disc_tv.handle(Action.RIGHT)
+        assert disc_tv.player.navigated == []
+
+    def test_pause_always_works_even_if_the_disc_says_it_is_in_a_menu(self, disc_tv):
+        """Nothing important is allowed to depend on the menu heuristic."""
+        disc_tv.player.menu = True
+        disc_tv.handle(Action.PLAY_PAUSE)
+        assert disc_tv.player.state().value == "paused"
+        assert disc_tv.player.navigated == []
+
+    def test_and_so_does_back(self, disc_tv):
+        disc_tv.player.menu = True
+        disc_tv.handle(Action.BACK)
+        assert disc_tv.screen is Screen.BROWSE
 
 
 class TestADiscMenuBelongsToTheDisc:

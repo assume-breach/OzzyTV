@@ -186,16 +186,26 @@ class TestTheOtherScreens:
         assert sc.bg == "#000000"
 
     def test_the_progress_bar_does_not_sit_on_the_buttons(self):
-        """It did: at a shallower strip the bar ran straight through the OK cap."""
-        sc = build(View(screen="playing", now_title="Bluey", position_ms=1000,
-                        duration_ms=2000, paused=True))
-        bar = [r for r in sc.rects() if r.fill == skin.SUN and r.w > W * 0.2]
-        # The button caps, NOT the progress track — which is also PILL-filled and
-        # sits exactly where the caps would be if this went wrong.
-        caps = [r for r in sc.rects()
-                if r.fill == skin.PILL and H * 0.03 < r.h < H * 0.07]
-        assert bar and caps
-        assert max(b.y + b.h for b in bar) <= min(c.y for c in caps) + 1
+        """At 0.22 of the screen the bar ran straight through them."""
+        v = View(screen="playing", now_title="Bluey", position_ms=60_000,
+                 duration_ms=600_000, paused=True)
+        sc = skin.build(v, 1280, 720, columns=1, rows=6)
+        bar = [r for r in sc.rects() if r.fill == skin.SUN and r.hit is None]
+        buttons = [r for r in sc.rects() if r.hit and r.hit.startswith("key:")]
+        assert bar and buttons, "no progress bar, or no buttons"
+        lowest_bar = max(r.y + r.h for r in bar)
+        assert min(r.y for r in buttons) >= lowest_bar, "the bar runs through them"
+
+    def test_the_paused_strip_can_be_worked_with_a_pointer(self):
+        """It used to say "Paused" and list which KEYS to press, which is no use
+        to somebody holding a mouse — and a paused film with no visible way to
+        resume reads as another thing that has stopped working."""
+        v = View(screen="playing", now_title="Bluey", position_ms=60_000,
+                 duration_ms=600_000, paused=True)
+        sc = skin.build(v, 1280, 720, columns=1, rows=6)
+        targets = {r.hit for r in sc.rects() if r.hit}
+        for needed in ("key:select", "key:stop", "key:fwd30", "key:back30"):
+            assert needed in targets, f"nothing to click for {needed}"
 
     def test_every_screen_produces_something(self):
         for screen in ("browse", "playing", "pin", "parent", "message"):

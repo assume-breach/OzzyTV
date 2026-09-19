@@ -237,7 +237,7 @@ class TestVideoAndMenusAreNeverBothOnScreen:
         tkview.render()
         assert tkview.overlay.placed is True
         drawn = " ".join(str(t) for t in texts(tkview.overlay))
-        assert "Paused" in drawn
+        assert "Play" in drawn, "no visible way to resume a paused film"
 
     def test_the_paused_strip_is_not_the_full_screen_canvas(self, tkview):
         """Tk widgets are opaque: a full-screen canvas lifted over the video does

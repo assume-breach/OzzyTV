@@ -226,11 +226,31 @@ def check_discs() -> Check:
     return Check("DVD drive", OK, f"{loaded[0].device} has a disc")
 
 
+def check_sound() -> Check:
+    """Where the sound is going.
+
+    A Pi wired to a television and defaulting to the 3.5mm jack is silent, and
+    the first guess is always that the film is broken.
+    """
+    if not shutil.which("aplay"):
+        return Check("sound", WARN, "cannot tell (no aplay)",
+                     "sudo apt install alsa-utils")
+    cards = subprocess.run(["aplay", "-l"], capture_output=True, text=True).stdout
+    if "HDMI" not in cards and "hdmi" not in cards:
+        return Check("sound", WARN, "no HDMI audio device on this Pi",
+                     "check the HDMI lead, then: aplay -l")
+    conf = Path("/etc/asound.conf")
+    if conf.is_file() and "defaults.pcm.card" in conf.read_text():
+        return Check("sound", OK, "default output set to HDMI")
+    return Check("sound", WARN, "HDMI exists but is not the default output",
+                 "sudo raspi-config nonint do_audio 2   (or re-run install.sh)")
+
+
 def run(settings, store) -> list[Check]:
     return [check_build(), check_package(), check_tk(), check_vlc(),
             check_drawing(), check_display(),
             check_media(settings), check_allowed(settings, store),
-            check_share(), check_discs(),
+            check_share(), check_discs(), check_sound(),
             check_pin(store), check_service()]
 
 

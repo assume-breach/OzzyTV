@@ -201,8 +201,23 @@ own, and a hardware flag copied from a forum post is the usual cause of the
 problem it is supposed to fix. Change one thing at a time and test with
 `ozzytv --windowed`.
 
-**No sound over HDMI?** Check the Pi is not sending audio to the headphone jack:
-`sudo raspi-config` → System → Audio.
+### Sound out of the TV, not the headphone socket
+
+The installer does this for you — `raspi-config`, `/etc/asound.conf` and the
+PipeWire default, because which of those matters depends on the image. A Pi
+wired to a television and defaulting to the 3.5mm jack is silent, and the first
+guess is always that the film is broken.
+
+To check or redo it by hand:
+
+```sh
+ozzytv --doctor                        # the 'sound' line says where it is going
+aplay -l                               # which cards exist; HDMI should be there
+sudo raspi-config nonint do_audio 2    # 0 auto, 1 headphones, 2 HDMI
+```
+
+If the TV is still silent, it is usually the television's own input settings
+rather than the Pi — check it is not set to an optical or ARC output.
 
 ## When the screen stays black
 

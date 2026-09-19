@@ -516,8 +516,26 @@ def _playing(sc: Scene, v, w: int, h: int, columns: int, rows: int) -> None:
     sc.add(RoundRect(bx, by, bw2, h * 0.020, r=h * 0.010, fill=PILL),
            RoundRect(bx, by, max(h * 0.020, bw2 * frac), h * 0.020, r=h * 0.010, fill=SUN),
            Circle(bx + bw2 * frac, by + h * 0.010, h * 0.019, fill=FOCUS))
-    sc.add(Text(w / 2, y + bar_h * 0.68, "Paused", font=BODY, fill=INK_DIM, anchor="center"))
-    _hints(sc, w, h, [("OK", "Resume"), ("Back", "Stop"), ("+ -", "Volume")])
+    # Buttons, in the middle, big enough to hit with a pointer. The strip said
+    # "Paused" and listed which KEYS to press, which is no use at all to somebody
+    # holding a mouse — and a paused film with no visible way to resume it reads
+    # as another thing that has stopped working.
+    bw, bh = h * 0.115, h * 0.075
+    gap = h * 0.022
+    row = [("⏮  30s", "key:back30"), ("▶  Play", "key:select"),
+           ("30s  ⏭", "key:fwd30"), ("■  Stop", "key:stop")]
+    total = len(row) * bw + (len(row) - 1) * gap
+    bxx = (w - total) / 2
+    for label, target in row:
+        sc.add(RoundRect(bxx, y + bar_h * 0.62, bw, bh, r=h * 0.018, fill=PILL,
+                         outline=SUN if target == "key:select" else PANEL_EDGE,
+                         width=h * 0.004 if target == "key:select" else HAIRLINE * h,
+                         hit=target),
+               Text(bxx + bw / 2, y + bar_h * 0.62 + bh / 2, label, font=SMALL,
+                    fill=INK, anchor="center"))
+        bxx += bw + gap
+    sc.add(Text(w - w * 0.035, y + bar_h * 0.62 + bh / 2, "+ -  Volume", font=SMALL,
+                fill=INK_DIM, anchor="e"))
 
 
 def _welcome(sc: Scene, v, mx: float, mw: float, w: int, h: int) -> None:

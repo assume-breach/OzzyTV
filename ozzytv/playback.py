@@ -177,6 +177,20 @@ class VlcPlayer:
             log.debug("navigate(%s) failed", where, exc_info=True)
             return False
 
+    def in_menu(self) -> bool:
+        """Is the disc showing its own menu, rather than playing a title?
+
+        libdvdnav puts the menus in title 0, so anything at or below that is a
+        menu and anything above it is the film. It is a heuristic — which is why
+        nothing important depends on it: Pause, Back and volume are handled
+        before this is ever consulted, so a disc that numbers its titles oddly
+        costs you the arrow keys in a menu, not the ability to stop the film.
+        """
+        try:
+            return self._mp.get_title() <= 0
+        except Exception:
+            return False
+
     def release(self) -> None:
         try:
             self._mp.stop()
@@ -247,6 +261,9 @@ class FakePlayer:
             return False
         self.navigated.append(where)
         return True
+
+    def in_menu(self) -> bool:
+        return getattr(self, "menu", False)
 
     def release(self) -> None:
         self.released = True

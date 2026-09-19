@@ -621,7 +621,17 @@ class OzzyApp:
         """
         kind, rest = target.split(":", 1) if ":" in target else (target, "")
         if kind == "key":
-            # The hint bar at the bottom is a row of buttons, not a legend.
+            if rest == "back30":
+                self.playback.seek(-SEEK_BIG_MS)
+                return
+            if rest == "fwd30":
+                self.playback.seek(SEEK_BIG_MS)
+                return
+            if rest == "stop":
+                self.playback.stop()
+                self.screen = Screen.BROWSE
+                return
+            # The bar at the bottom is a row of buttons, not a legend.
             self.handle({"select": Action.SELECT, "back": Action.BACK,
                          "parent": Action.PARENT}.get(rest, Action.BACK))
             return
@@ -740,11 +750,28 @@ class OzzyApp:
         return bool(self.player.navigate(where))
 
     def _playing_key(self, action: Action, value: str) -> None:
-        if self._playing_disc() and action is not Action.BACK:
-            # Volume is still ours; everything else the disc wants.
-            if action not in (Action.VOLUME_UP, Action.VOLUME_DOWN):
-                if self._disc_key(action):
-                    return
+        # The controls that must work whatever the disc thinks are handled
+        # FIRST, so that a disc numbering its titles oddly costs you the arrow
+        # keys in a menu rather than the ability to stop the film. Pause is one
+        # of them: routing everything to the disc is how playback ended up with
+        # no controls at all once the film started.
+        if action is Action.BACK:
+            self.playback.stop()
+            self.screen = Screen.BROWSE
+            return
+        if action is Action.VOLUME_UP:
+            self.playback.change_volume(5)
+            return
+        if action is Action.VOLUME_DOWN:
+            self.playback.change_volume(-5)
+            return
+        if action is Action.PLAY_PAUSE:
+            self.playback.toggle_pause()
+            return
+        # Arrows and OK go to the disc only while its own menu is up.
+        if self._playing_disc() and self.player.in_menu():
+            if self._disc_key(action):
+                return
         if action in (Action.SELECT, Action.PLAY_PAUSE):
             self.playback.toggle_pause()
         elif action is Action.BACK:

@@ -210,6 +210,14 @@ class TkView:
                 self.app.click(target)
                 self.render()
                 return
+        # Nothing under the pointer. While a film is playing there is nothing
+        # drawn to BE under it — so a click on the picture does what a click on
+        # a picture does everywhere else, and pauses. Not while a disc menu is
+        # up: that menu is the disc's, and so is the click.
+        if (self.app.screen is Screen.PLAYING
+                and not (self.app._playing_disc() and self.app.player.in_menu())):
+            self.app.handle(Action.PLAY_PAUSE)
+            self.render()
 
     def _on_key(self, event) -> None:
         sym = event.keysym
