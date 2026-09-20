@@ -619,6 +619,13 @@ class OzzyApp:
         than as deliberate. The decision lives here, not in the drawing layer,
         for the same reason every other decision does: it can be tested.
         """
+        # Line the rail up with what is ON THE SCREEN first, exactly as view()
+        # does before it builds the tiles. Without this the two disagree the
+        # moment the shelves change underneath — which the network share causes
+        # all day — and a click reads its tiles from a different shelf than the
+        # one being looked at. On screen you press a folder; underneath, index 2
+        # of some other shelf is a video, and it plays.
+        self._sync_rail(self._rail())
         kind, rest = target.split(":", 1) if ":" in target else (target, "")
         if kind == "key":
             if rest == "back30":

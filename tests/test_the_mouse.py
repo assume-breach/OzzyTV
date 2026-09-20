@@ -9,7 +9,7 @@ outright, so there was no way to tell the two apart.
 import pytest
 
 from ozzytv import skin
-from ozzytv.app import Action, Pane
+from ozzytv.app import Action, OzzyApp, Pane, Screen
 from ozzytv.scene import RoundRect
 from tests.conftest import into_tiles, pick_shelf, shelves
 # The stand-in Tk and the TkView built on it live with the renderer's own tests.
@@ -186,3 +186,47 @@ class TestTheFirstBootScreen:
     most likely with a mouse — and until now the one screen with nothing on it
     a pointer could press."""
 
+
+
+class TestAClickActsOnWhatIsOnTheScreen:
+    """view() lines the rail up with what is being LOOKED at before it builds
+    the tiles. click() did not — so the moment the shelves changed underneath,
+    which the network share causes all day, the two disagreed: on screen you
+    pressed a folder, underneath that index was a video on another shelf, and
+    it played instead of opening."""
+
+    def test_a_folder_opens_even_after_the_shelves_move(self, settings, store,
+                                                        player, clock, tmp_path):
+        media = tmp_path / "ozzy"
+        for rel in ("Land Before Time/Season 1/01 Cave.mp4", "Zoo/z.mp4"):
+            f = media / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(b"v")
+        settings.media_roots = [str(media)]
+        app = OzzyApp(settings, store, player, clock=clock)
+        app.view()
+
+        # A folder arrives that sorts ahead of the one being looked at.
+        (media / "Aardvark").mkdir()
+        (media / "Aardvark" / "a.mp4").write_bytes(b"v")
+        app.rescan()
+
+        # Draw the screen FIRST — that is what puts the cursor right — and only
+        # then knock it out of step, with no render in between. Calling view()
+        # after the cursor goes stale fixes it, and the test then passes with
+        # the bug present, which is what the first version of this did.
+        shown = app.view().tiles
+        assert shown[0].kind == "folder", "the test is not set up as intended"
+        app.rail_cursor = 0                      # a stale cursor
+        app.click("tile:0")
+        assert app.screen is not Screen.PLAYING, \
+            "it played a video from another shelf instead of opening the folder"
+        assert app.view().heading == "Season 1"
+
+    def test_clicking_a_video_still_plays_it(self, allow_everything):
+        app = allow_everything
+        pick_shelf(app, "PAW Patrol")
+        into_tiles(app)
+        assert app.view().tiles[0].kind == "video"
+        app.click("tile:0")
+        assert app.screen is Screen.PLAYING
