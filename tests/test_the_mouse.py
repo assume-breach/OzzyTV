@@ -230,3 +230,75 @@ class TestAClickActsOnWhatIsOnTheScreen:
         assert app.view().tiles[0].kind == "video"
         app.click("tile:0")
         assert app.screen is Screen.PLAYING
+
+
+class TestEveryClickHappensOnce:
+    """A widget's bindtags are (widget, class, toplevel, all), so a click on the
+    canvas ALREADY runs the toplevel's handler. Binding the children as well ran
+    every click twice: pause toggled and untoggled, and Stop stopped and then
+    acted a second time on the menu that had just replaced the video."""
+
+    def test_only_the_toplevel_listens_for_clicks(self, tkview):
+        import re
+        from pathlib import Path
+        src = Path(__file__).resolve().parents[1] / "ozzytv" / "tkview.py"
+        bindings = re.findall(r'(\w+)\.bind\("<Button-1>"', src.read_text())
+        assert bindings == ["root"], f"clicks are bound {len(bindings)} times: {bindings}"
+
+    def test_a_click_that_hits_something_stops_there(self, tkview):
+        """Returning "break" keeps Tk from running it again further up."""
+        import types
+        tkview.render()
+        x0, y0, x1, y1, _ = tkview._hits[-1]
+        out = tkview._on_click(types.SimpleNamespace(x=(x0 + x1) / 2, y=(y0 + y1) / 2))
+        assert out == "break"
+
+    def test_and_so_does_a_click_that_hits_nothing(self, tkview):
+        import types
+        tkview.render()
+        assert tkview._on_click(types.SimpleNamespace(x=-50, y=-50)) == "break"
+
+
+class TestThePictureSitsStill:
+    """render() runs on every tick while something is playing. Raising the
+    window libVLC draws into four times a second makes X repaint it four times a
+    second, which is a picture that will not sit still."""
+
+    def _play(self, tkview):
+        from ozzytv.app import Action, Screen
+        for _ in range(6):
+            tkview.app.handle(Action.SELECT)
+            if tkview.app.screen is Screen.PLAYING:
+                return
+        raise AssertionError("nothing played")
+
+    def test_the_video_window_is_raised_once_not_every_tick(self, tkview):
+        self._play(tkview)
+        tkview.render()
+        before = len([c for c in tkview.video.calls if "raise" in str(c)])
+        for _ in range(8):
+            tkview.render()
+        after = len([c for c in tkview.video.calls if "raise" in str(c)])
+        assert after == before, f"it raised the picture {after - before} more times"
+
+    def test_and_raised_again_after_coming_back_from_the_menu(self, tkview):
+        from ozzytv.app import Action
+        self._play(tkview)
+        tkview.render()
+        tkview.app.handle(Action.BACK)          # back to the menu
+        tkview.render()
+        before = len([c for c in tkview.video.calls if "raise" in str(c)])
+        self._play(tkview)
+        tkview.render()
+        after = len([c for c in tkview.video.calls if "raise" in str(c)])
+        assert after > before, "the film came back underneath the menus"
+
+    def test_the_keyboard_is_taken_back_when_a_film_starts(self, tkview):
+        """libVLC's output window can end up with the input focus, and with no
+        window manager nothing hands it back — after which Back does not stop
+        the film because Back never reaches this program."""
+        self._play(tkview)
+        before = len([c for c in tkview.root.calls if c[0] == "focus_force"])
+        tkview.render()
+        after = len([c for c in tkview.root.calls if c[0] == "focus_force"])
+        assert after > before

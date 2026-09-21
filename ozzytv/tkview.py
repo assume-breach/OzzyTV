@@ -118,13 +118,19 @@ class TkView:
         # A pointer is not how a child drives this — but it IS how the grown-up
         # setting it up drives it, and doing nothing at all when you click a tile
         # reads as broken rather than as deliberate.
+        # ONE binding, on the toplevel. A widget's bindtags are
+        # (widget, class, toplevel, all), so a click on the canvas already runs
+        # the toplevel's handler — binding the children as well ran every click
+        # TWICE. Pause toggled and untoggled (and repainted twice, which is the
+        # flash), and Stop stopped and then acted a second time on the menu that
+        # had just replaced the video.
         self.root.bind("<Button-1>", self._on_click)
-        self.canvas.bind("<Button-1>", self._on_click)
-        self.overlay.bind("<Button-1>", self._on_click)
         self.root.bind("<Motion>", self._on_motion)
         self._hide_pointer_after = None
         self._hits: list[tuple[float, float, float, float, str]] = []
         self._last_size = (0, 0)
+        self._video_on_top = False
+        self._strip_on_top = False
         self.canvas.bind("<Configure>", self._on_resize)
         self.root.protocol("WM_DELETE_WINDOW", lambda: None)   # no way out but the PIN
 
@@ -213,7 +219,7 @@ class TkView:
             if x0 <= x <= x1 and y0 <= y <= y1:
                 self.app.click(target)
                 self.render()
-                return
+                return "break"
         # Nothing under the pointer. While a film is playing there is nothing
         # drawn to BE under it — so a click on the picture does what a click on
         # a picture does everywhere else, and pauses. Not while a disc menu is
@@ -222,6 +228,7 @@ class TkView:
                 and not (self.app._playing_disc() and self.app.player.in_menu())):
             self.app.handle(Action.PLAY_PAUSE)
             self.render()
+        return "break"
 
     def _on_key(self, event) -> None:
         sym = event.keysym
@@ -298,7 +305,18 @@ class TkView:
         sc = skin.build(v, w, h, columns=self.app.settings.columns,
                         rows=self.app.settings.rows)
         if v.screen == Screen.PLAYING.value:
-            _raise(self.video)
+            # Raise and attach only on the way IN. render() runs on every tick
+            # while something is playing, and raising the window libVLC draws
+            # into four times a second makes X repaint it four times a second —
+            # which is a picture that will not sit still.
+            if not self._video_on_top:
+                self._video_on_top = True
+                _raise(self.video)
+                # And take the keyboard back. libVLC's output window can end up
+                # with the input focus, and with no window manager nothing hands
+                # it back — after which Back does not stop the film because Back
+                # never reaches this program at all.
+                self._take_the_keyboard()
             # Hand VLC the window HERE, not once at startup. At startup the
             # frame is behind the menus and may not be mapped yet, and libVLC
             # asked to draw into a window that is not ready answers "video
@@ -308,16 +326,21 @@ class TkView:
             self._attach_video()
             if not v.paused:
                 self.overlay.place_forget()
+                self._strip_on_top = False
                 return
             # skin lays the strip out in full-screen coordinates; the strip itself
             # is the bottom slice, so it is drawn with everything shifted up by
             # where that slice starts.
             strip_h = int(h * 0.30)
             self.overlay.place(x=0, y=h - strip_h, relwidth=1, height=strip_h)
-            _raise(self.overlay)
+            if not self._strip_on_top:
+                self._strip_on_top = True
+                _raise(self.overlay)    # once, for the same reason as the video
             self._paint(self.overlay, sc, dy=-(h - strip_h))
             return
         self.overlay.place_forget()
+        self._video_on_top = False
+        self._strip_on_top = False
         _raise(self.canvas)
         self._paint(self.canvas, sc)
 
