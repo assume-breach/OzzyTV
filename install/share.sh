@@ -263,9 +263,10 @@ $CREDS
 Copy shows in, then allow them for your child — over ssh:
 
     ozzytv --scan
-    ozzytv --allow "$MEDIA/Bluey"
 
-or on the television itself: press P, enter the PIN.
+Everything you copy in shows up on its own. To hide something:
+
+    ozzytv --block "$MEDIA/<what>"
 
 The television notices new files on its own within a few seconds; there is
 nothing to restart.

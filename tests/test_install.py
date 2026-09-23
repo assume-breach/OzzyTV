@@ -221,12 +221,14 @@ class TestAFreshPi:
 
     def test_it_says_what_to_do_next(self, install):
         out = install().stdout
-        assert "--set-pin" in out and "--allow" in out
+        assert "--scan" in out and "--block" in out
         assert "Reboot" in out
 
-    def test_it_warns_that_nothing_is_visible_until_allowed(self, install):
-        assert "Nothing is visible until you allow it" in install().stdout
-
+    def test_it_says_that_what_you_copy_in_shows_up(self, install):
+        """This asserted the opposite until the gate came out, and then went on
+        asserting it — which is how the installer kept printing instructions for
+        a version of the program that no longer existed."""
+        assert "shows up" in install().stdout
 
 class TestTheCheckThatWasARubberStamp:
     """The installer used to verify the import WITH PYTHONPATH set — which proves
@@ -616,3 +618,36 @@ class TestTheNetworkShare:
         backup = install.root / "etc" / "samba" / "smb.conf.before-ozzytv"
         assert not backup.exists(), "it left its backup lying around"
         assert not conf.exists() or "Ozzy TV" not in conf.read_text()
+
+
+class TestWhatItTellsYouIsTrue:
+    """The installer went on printing instructions for the version before the
+    gate came out — including `ozzytv --set-pin`, which is a flag that no longer
+    exists. Somebody following its own closing message would get an error and
+    reasonably conclude the install was broken."""
+
+    def test_it_never_names_a_flag_the_program_does_not_have(self, install):
+        import re
+        out = install().stdout
+        src = (REPO / "ozzytv" / "__main__.py").read_text()
+        real = set(re.findall(r'add_argument\("(--[a-z-]+)"', src))
+        for flag in set(re.findall(r"ozzytv (--[a-z-]+)", out)):
+            assert flag in real, f"it tells you to run {flag}, which does not exist"
+
+    def test_it_does_not_promise_a_pin(self, install):
+        out = install().stdout
+        for gone in ("--set-pin", "enter the PIN", "parent PIN"):
+            assert gone not in out, f"still says {gone!r}"
+
+    def test_nor_that_things_must_be_allowed_first(self, install):
+        out = install().stdout
+        assert "Nothing is visible until you allow it" not in out
+        assert "shows up" in out, "it never says what actually happens"
+
+    def test_the_dvd_libraries_are_looked_up_not_guessed(self):
+        """libdvdread8t64 on Trixie, libdvdread8 on Bookworm, libdvdread7 on
+        Bullseye. Naming one and warning when it is missing means every Trixie
+        install reports that discs will not play."""
+        body = (REPO / "install" / "install.sh").read_text()
+        assert "libdvdread8t64" in body
+        assert "apt-cache show" in body, "it still guesses at the package name"

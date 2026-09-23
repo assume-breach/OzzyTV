@@ -110,9 +110,19 @@ apt-get install -y libdvd-pkg >/dev/null 2>&1 \
          commercial ones will not. Try it on its own with:
              sudo apt install libdvd-pkg && sudo dpkg-reconfigure libdvd-pkg"
 
-apt-get install -y --no-install-recommends libdvdnav4 libdvdread8 \
-  || apt-get install -y --no-install-recommends libdvdnav4 libdvdread7 \
-  || warn "the DVD libraries did not install; discs will not play."
+# The name of the reader library keeps moving: libdvdread8t64 on Trixie (the
+# 64-bit time_t rebuild), libdvdread8 on Bookworm, libdvdread7 on Bullseye. Ask
+# apt which one this machine actually has rather than guessing and warning.
+_dvdread=""
+for _c in libdvdread8t64 libdvdread8 libdvdread7; do
+  if apt-cache show "$_c" >/dev/null 2>&1; then _dvdread="$_c"; break; fi
+done
+if [ -n "$_dvdread" ]; then
+  apt-get install -y --no-install-recommends libdvdnav4 "$_dvdread" \
+    || warn "libdvdnav4/$_dvdread would not install; discs will not play."
+else
+  warn "no libdvdread package on this image; discs will not play."
+fi
 
 apt-get install -y --no-install-recommends ffmpeg cec-utils \
   || warn "ffmpeg/cec-utils did not install. Ozzy TV works without them; you lose
@@ -365,15 +375,16 @@ Ozzy TV is installed.   [$(cat "$APP_DIR/BUILD")]
   1. Put films and shows in $MEDIA_DEFAULT
         (or edit media_roots in $CONF_DIR/settings.json)
 
-  2. Set the parent PIN — do this before anyone else does:
-        sudo -u $OWNER ozzytv --set-pin
+     Everything you put there shows up. There is nothing to allow.
 
-  3. Choose what your child can watch. Either on the television (press P and
-     enter the PIN), or from here:
+  2. See what it found:
         sudo -u $OWNER ozzytv --scan
-        sudo -u $OWNER ozzytv --allow "$MEDIA_DEFAULT/Bluey"
 
-     Nothing is visible until you allow it. That is deliberate.
+  3. If there is something you would rather your child did not find:
+        sudo -u $OWNER ozzytv --block "$MEDIA_DEFAULT/<what>"
+        sudo -u $OWNER ozzytv --forget "$MEDIA_DEFAULT/<what>"   # show it again
+
+     Or on the television: press P. There is no PIN.
 
 TXT
 if [ "$KIOSK" -eq 1 ]; then
