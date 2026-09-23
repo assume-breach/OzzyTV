@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
-from .config import AUDIO_EXTS, IGNORED_NAMES, VIDEO_EXTS
+from .config import AUDIO_EXTS, IGNORED_LOWER, VIDEO_EXTS
 
 # How deep to walk before deciding something is wrong with the drive rather than
 # with us. Nobody files their children's television 40 folders down.
@@ -138,7 +138,7 @@ def _is_media(p: Path) -> Kind | None:
 
 
 def _skip(name: str) -> bool:
-    return name.startswith(".") or name in IGNORED_NAMES
+    return name.startswith(".") or name.lower() in IGNORED_LOWER
 
 
 def scan_root(root: Path) -> Node | None:
@@ -217,15 +217,16 @@ def scan(roots: list[Path]) -> list[Node]:
 
 
 def prune_empty_folders(node: Node) -> Node:
-    """Drop folders with no media anywhere beneath them.
+    """Keep the shape of the drive, empty folders and all.
 
-    A library has `Bluey/Season 1/subs/` and `.AppleDouble` and a dozen other
-    folders holding nothing a child can watch. Showing them as openable shelves
-    that turn out to be empty teaches a child that the remote is broken.
+    This used to drop any folder with no media beneath it, on the grounds that a
+    shelf you open to find nothing teaches a child the remote is broken. That is
+    true — and it also meant a folder you had just made over the network share
+    vanished, which teaches a GROWN-UP that the share is broken, and they are the
+    one who can do something about it. The sidecar folders that motivated the
+    rule (subs, sample, artwork) are filtered by name instead, in config.py.
     """
     if node.is_playable:
         return node
-    kept = [prune_empty_folders(c) for c in node.children]
-    node.children = [c for c in kept
-                     if c.is_playable or any(d.is_playable for d in c.walk())]
+    node.children = [prune_empty_folders(c) for c in node.children]
     return node

@@ -142,6 +142,15 @@ class TkView:
         an arrow parked in the middle of a show, because a child will find
         the mouse and let go of it.
         """
+        # Hovering moves the highlight, the way arrow keys do — so a pointer
+        # can look at something without opening it.
+        if self.app.screen is not Screen.PLAYING:
+            for x0, y0, x1, y1, target in reversed(self._hits):
+                if x0 <= event.x <= x1 and y0 <= event.y <= y1:
+                    if target.startswith(("rail:", "tile:")) and \
+                            self.app.point_at(target):
+                        self.render()
+                    break
         try:
             self._cursor(ARROW)
             if self._hide_pointer_after is not None:

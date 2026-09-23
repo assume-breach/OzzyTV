@@ -200,10 +200,32 @@ if [ -n "$HDMI_CARD" ]; then
   _num="${HDMI_CARD%% *}"
   _name="${HDMI_CARD#* }"
   say "  found HDMI audio on card $_num ($_name)"
+  # Through plug and dmix, not straight at the card. A raw hardware device is
+  # opened EXCLUSIVELY and at one fixed sample rate: the first film takes it,
+  # and the next one — recorded at a different rate, or asking while the first
+  # has not finished letting go — gets silence. plug resamples, dmix shares.
   cat > /etc/asound.conf <<ASOUND
 # Written by Ozzy TV's installer. Delete this file to go back to the default.
-defaults.pcm.card $_num
-defaults.ctl.card $_num
+pcm.!default {
+    type plug
+    slave.pcm "ozzytv_mix"
+}
+
+pcm.ozzytv_mix {
+    type dmix
+    ipc_key 2748
+    slave {
+        pcm "hw:$_num,0"
+        rate 48000
+        period_size 1024
+        buffer_size 8192
+    }
+}
+
+ctl.!default {
+    type hw
+    card $_num
+}
 ASOUND
   # PipeWire and PulseAudio ignore /etc/asound.conf and keep their own idea of
   # the default, so set that too, as the user who will be playing the films.

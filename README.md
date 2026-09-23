@@ -52,6 +52,17 @@ a console: **Ctrl-Alt-F2**, or ssh in.
 `sudo ./install/install.sh --uninstall` puts the console back. It leaves your
 media and your choices alone.
 
+### What shows up
+
+Everything on the drive, folders included — **an empty folder is still a
+folder**. Make one over the share and it appears, with a count of 0, so you can
+see the share worked before you have copied anything into it.
+
+Hidden files, `@eaDir`, `lost+found` and the sidecar folders that sit beside
+every episode — `subs`, `subtitles`, `sample`, `artwork` — are skipped by name,
+whatever they are capitalized as. Those are made by other software and are never
+a thing anybody picks.
+
 ## The sun
 
 ![The home screen](docs/mockups/01-home.png)
@@ -217,6 +228,11 @@ PipeWire default, because which of those matters depends on the image. A Pi
 wired to a television and defaulting to the 3.5mm jack is silent, and the first
 guess is always that the film is broken.
 
+The default output goes through ALSA's `plug` and `dmix` rather than straight at
+the card. A raw hardware device is opened exclusively and at one fixed sample
+rate, so the first film takes it and the next one — recorded at a different rate
+— gets silence.
+
 To check or redo it by hand:
 
 ```sh
@@ -347,6 +363,9 @@ Made for a remote, and it stays that way — but a mouse works. Click a shelf to
 open it, click a show to play it. On the parent screen a click moves to a
 row; allowing or blocking still takes OK, because that is a decision and a stray
 click is not one.
+
+Hovering moves the highlight, the way the arrow keys do, so you can look at
+something without opening it. The click does the opening.
 
 The pointer shows itself when you move it and disappears three seconds after you
 stop, because a child will find the mouse and then let go of it.

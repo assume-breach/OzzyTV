@@ -96,6 +96,15 @@ class VlcPlayer:
         # filesystem path, so "dvd:///dev/sr0" would be looked for as a file of
         # that name and simply not found — a black screen and nothing in the
         # log worth reading. media_new() takes an MRL.
+        # STOP first. Handing libVLC new media while the old one is still
+        # playing leaves the audio output open on the previous stream — and an
+        # ALSA device opened for one sample rate does not re-open for another,
+        # which is how you end up with sound on the first film and silence on
+        # every one after it.
+        try:
+            self._mp.stop()
+        except Exception:
+            log.debug("could not stop the previous media", exc_info=True)
         text = str(path)
         if "://" in text:
             media = self._instance.media_new(text)

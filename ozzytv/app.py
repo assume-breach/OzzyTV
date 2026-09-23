@@ -309,9 +309,13 @@ class OzzyApp:
     def _visible_children(self, root_index: int, node: Node) -> list[Node]:
         """What the child may see in this folder.
 
-        A folder survives only if something under it is visible — an openable
-        shelf that turns out to be empty is indistinguishable, to a child, from
-        having pressed the wrong button.
+        A folder survives unless it was deliberately HIDDEN. It used to have to
+        contain something visible as well, on the grounds that an openable shelf
+        which turns out to be empty is indistinguishable, to a child, from
+        having pressed the wrong button — but that also made a folder just
+        created over the share disappear, which is worse: the grown-up looking
+        for it is the one who can do something about it, and they conclude the
+        share is broken.
         """
         rules = self.rules[root_index]
         out = []
@@ -319,7 +323,9 @@ class OzzyApp:
             if c.is_playable:
                 if picks.decide_rel(rules, c.rel).visible:
                     out.append(c)
-            elif picks.folder_has_anything_visible(rules, c.rel, c.descendant_rels()):
+            elif picks.decide_rel(rules, c.rel).visible:
+                # A folder shows unless it, or something above it, is hidden.
+                # Whether it happens to be empty is not the question.
                 out.append(c)
         return out
 
@@ -399,10 +405,13 @@ class OzzyApp:
                                  rel=LOOSE_KEY, root_index=loose[0][0],
                                  count=len(loose), is_here=True))
         for ri, node in self._shelves():
+            # Empty ones too. A folder made over the share and not yet filled is
+            # exactly the folder somebody is looking for confirmation of, and a
+            # shelf showing 0 answers that question where a missing shelf does
+            # not. Opening it says so; the skin already has the screen for it.
             items = self._playable_under(ri, node)
-            if items:
-                rail.append(RailItem(title=node.title, rel=node.rel, root_index=ri,
-                                     count=len(items)))
+            rail.append(RailItem(title=node.title, rel=node.rel, root_index=ri,
+                                 count=len(items)))
         return rail
 
     def _recent(self) -> list[tuple[int, Node]]:
@@ -610,6 +619,40 @@ class OzzyApp:
         self.screen = Screen.PLAYING
 
     # ------------------------------------------------------------- pointing
+    def point_at(self, target: str) -> bool:
+        """Move the highlight to something, without pressing it.
+
+        There was no way to look at a show with a mouse: the only thing a
+        pointer could do was open whatever was under it. Hovering moves the
+        highlight the way arrow keys do, and the click still does the pressing.
+        Returns whether anything actually moved, so the screen is not redrawn
+        four times a second for a pointer sitting still.
+        """
+        rail = self._sync_rail(self._rail())
+        kind, _, n = target.partition(":")
+        if not n.isdigit():
+            return False
+        i = int(n)
+        if kind == "rail" and 0 <= i < len(rail):
+            if self.rail_cursor == i and self.focus is Pane.RAIL:
+                return False
+            self.focus = Pane.RAIL
+            self.rail_cursor = i
+            self._rail_rel = rail[i].rel
+            self.cursor = 0
+            return True
+        if kind == "tile":
+            tiles = self._home_tiles() if (
+                not rail or rail[min(self.rail_cursor, len(rail) - 1)].rel == HOME_KEY
+            ) else self._grid()
+            if 0 <= i < len(tiles):
+                if self.cursor == i and self.focus is Pane.GRID:
+                    return False
+                self.focus = Pane.GRID
+                self.cursor = i
+                return True
+        return False
+
     def click(self, target: str) -> None:
         """Press a thing by name — "rail:2", "tile:5".
 

@@ -28,7 +28,15 @@ AUDIO_EXTS = frozenset({
 # Files that are never media, whatever their extension suggests.
 IGNORED_NAMES = frozenset({
     "@eaDir", "lost+found", "System Volume Information", ".Trash-1000", "#recycle",
+    # Sidecars. Empty folders are shown now — you made them, so you get to see
+    # them — but these are made BY something else, sit beside every episode, and
+    # are never a thing anybody picks.
+    "subs", "subtitles", "sample", "samples", "proof", "artwork",
 })
+
+# Matched case-insensitively, because "Subs", "SUBS" and "subs" are all the same
+# folder as far as anybody watching television is concerned.
+IGNORED_LOWER = frozenset(n.lower() for n in IGNORED_NAMES)
 
 
 def app_home() -> Path:
